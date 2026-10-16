@@ -82,7 +82,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.4 (2026-10-16)';
+const VER='v1.5 (2026-10-16)';
 const SETFILE='共用設定.json';
 const SYS=[
  {k:'report',  name:'報工',         code:'10', color:'var(--c-report)',  match:/報工|service.?report/i, desc:'廠內／廠外工時回報，月報依機種、客戶、工程師統計'},
@@ -252,7 +252,8 @@ function render(){
   $('#main').innerHTML=S.tab==='home'?vHome():S.tab==='settings'?vSettings():vCheck();
   if(S.tab==='check'&&!S.check&&ready())runCheck();
 }
-function linkFor(k){if(MODE()==='each')return (S.set&&S.set.links&&S.set.links[k])||DEF_LINKS[k]||'';const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
+const OLD_LINKS=['https://coos0820-hub.github.io/service-report/','https://coos0820-hub.github.io/field-service/'];
+function linkFor(k){if(MODE()==='each'){const u=S.set&&S.set.links&&S.set.links[k];return (u&&!OLD_LINKS.includes(u))?u:(DEF_LINKS[k]||'')}const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
 function banner(){
   if(!FSA)return `<div class="banner">這個瀏覽器不支援讀取共用資料夾，請用電腦版 Chrome 或 Edge 開啟。各系統入口仍可使用。</div>`;
   if(MODE()==='each')return `<div class="banner info">過渡模式（NAS 上線前）：各系統個別指定資料夾，「開啟」連到 GitHub Pages。NAS 上線後按右上角「改用 NAS 根目錄」切換，並把共用設定.json <b>搬移</b>到 NAS。</div>`+
@@ -271,8 +272,8 @@ function vHome(){
     else if(ready())body=`<div class="msg ${found?'err':''}">${found?esc(err||'尚無資料'):'在根目錄找不到這個系統的資料夾（可到共用設定指定）'}</div>`;
     else body=`<div class="msg">連結共用根目錄後顯示即時狀態</div>`;
     let lastT=sm&&sm.last?'更新 '+fDT(sm.last):(found?'資料夾：'+esc(S.dirs[s.k].name):'');
-    if(MODE()==='each')lastT+=` <button class="btn sm" data-act="pickeach" data-k="${s.k}" title="${found?'目前：'+esc(S.dirs[s.k].name):''}">${S.each[s.k]?'更換資料夾':'指定資料夾'}</button>`;
-    const idxWarn=found&&info.index===false?' <span class="wrnc">（資料夾內沒有 index.html）</span>':'';
+    if(MODE()==='each')lastT+=` <button class="btn sm" data-act="pickeach" data-k="${s.k}" title="${found?'目前：'+esc(S.dirs[s.k].name):''}">${S.each[s.k]?'更換資料夾':'指定資料夾'}</button>${S.each[s.k]?` <button class="btn sm" data-act="cleareach" data-k="${s.k}">清除</button>`:''}`;
+    const idxWarn=found&&info.index===false&&MODE()!=='each'?' <span class="wrnc">（資料夾內沒有 index.html）</span>':'';
     return `<div class="tile" style="--c:${s.color}"><div class="tt"><b>${esc(s.name)}</b><span>${s.code}</span></div>
       <div class="desc">${esc(s.desc)}</div>${body}
       <div class="foot"><span class="hint">${lastT}${idxWarn}</span>${href?`<a class="btn pri" href="${href}" target="_blank" rel="noopener">開啟</a>`:`<span class="btn dis">開啟</span>`}</div></div>`}).join('')}</div>
@@ -337,7 +338,7 @@ function vSettings(){
    <div>${fmtBlock('wo','WO 工單號格式')}${fmtBlock('fsn','FSN 格式')}</div>
   </div>
   ${MODE()==='each'?`<div class="card"><h3>過渡期網址</h3><p class="hint">NAS 上線前，首頁「開啟」按鈕連到這些網址（各系統的 GitHub Pages）。NAS 上線後改用 NAS 上的檔案，這裡就不再使用。</p>
-   <table class="tbl"><tbody>${SYS.map(s=>`<tr><td style="width:160px">${s.code} ${esc(s.name)}</td><td><input type="text" data-link="${s.k}" value="${esc((st.links||{})[s.k]??DEF_LINKS[s.k]??'')}" placeholder="https://…（留白＝沒有開啟按鈕）"></td></tr>`).join('')}</tbody></table></div>`:''}
+   <table class="tbl"><tbody>${SYS.map(s=>`<tr><td style="width:160px">${s.code} ${esc(s.name)}</td><td><input type="text" data-link="${s.k}" value="${esc(((st.links||{})[s.k]&&!OLD_LINKS.includes(st.links[s.k]))?st.links[s.k]:(DEF_LINKS[s.k]||''))}" placeholder="https://…（留白＝沒有開啟按鈕）"></td></tr>`).join('')}</tbody></table></div>`:''}
   <div class="card" style="${MODE()==='each'?'display:none':''}"><h3>資料夾對應</h3><p class="hint">IT 開的資料夾名稱和預設比對不同時，在這裡指定。指定後所有電腦都會照這個對應。</p>
    <table class="tbl"><thead><tr><th>系統</th><th>NAS 資料夾</th><th></th></tr></thead><tbody>${folderRows}</tbody></table></div>
   <div class="card"><h3>管理密碼</h3><div class="row"><input type="password" id="npw1" placeholder="新密碼" style="max-width:200px"><input type="password" id="npw2" placeholder="再輸入一次" style="max-width:200px"><button class="btn sm" data-act="chpw">變更（儲存後生效）</button></div>
@@ -416,6 +417,7 @@ document.addEventListener('click',async e=>{
   if(a==='starteach')return startEach();
   if(a==='pickeach')return pickEach(t.dataset.k);
   if(a==='granteach')return grantEach();
+  if(a==='cleareach'){const k=t.dataset.k;delete S.each[k];S.needGrant=S.needGrant.filter(x=>x!==k);await idb.set('each_'+k,null);await loadAll();if(!Object.keys(S.each).length)render();return}
   if(a==='recheck'){S.check=null;render();return}
   if(a==='setpw'){const p1=$('#pw1').value,p2=$('#pw2').value;if(p1.length<4){toast('密碼至少 4 碼',true);return}if(p1!==p2){toast('兩次輸入不同',true);return}
     S.set.adminHash=await sha(p1);S.unlocked=true;S.dirty=true;render();toast('記得按「儲存共用設定」才會生效');return}
