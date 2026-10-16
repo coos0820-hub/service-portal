@@ -82,7 +82,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.2 (2026-10-16)';
+const VER='v1.3 (2026-10-16)';
 const SETFILE='共用設定.json';
 const SYS=[
  {k:'report',  name:'報工',         code:'10', color:'var(--c-report)',  match:/報工|service.?report/i, desc:'廠內／廠外工時回報，月報依機種、客戶、工程師統計'},
@@ -93,7 +93,11 @@ const AUX=[{k:'portal',name:'入口網站',code:'00',match:/入口|portal/i},{k:
 const DEF_FAMILIES=["R5","Mink","COBRA","Seco","Dolphin","Panda","Puma","Samos","Fossa","Huckepack","其他品牌"];
 const DEF_SET=()=>({app:'shared-settings',ver:1,families:[...DEF_FAMILIES],
   formats:{wo:{example:'',pattern:'',note:''},fsn:{example:'',pattern:'',note:''}},
-  folders:{},adminHash:'',updatedAt:'',updatedBy:''});
+  folders:{},links:{},adminHash:'',updatedAt:'',updatedBy:''});
+/* 過渡模式（NAS 上線前）：各系統個別指定資料夾，開啟按鈕連到 GitHub Pages */
+const MODE=()=>localStorage.getItem('svc_portal_mode')==='each'?'each':'root';
+const EACH_KEYS=['settings','report','teardown','fs','cq'];
+const DEF_LINKS={report:'https://coos0820-hub.github.io/service-report/',fs:'https://coos0820-hub.github.io/field-service/',cq:'https://coos0820-hub.github.io/Customer-issue/',teardown:''};
 
 /* ---------- 小工具 ---------- */
 const $=s=>document.querySelector(s);
@@ -121,16 +125,38 @@ async function parseAny(t){
 }
 
 /* ---------- 狀態 ---------- */
-const S={tab:'home',root:null,perm:'none',dirs:{},data:{},info:{},errs:{},set:null,setLoadedAt:'',setExists:false,unlocked:false,loading:false,check:null};
+const S={tab:'home',root:null,perm:'none',each:{},needGrant:[],dirs:{},data:{},info:{},errs:{},set:null,setLoadedAt:'',setExists:false,unlocked:false,loading:false,check:null};
 
+/* ---------- 來源 ---------- */
+const ready=()=>MODE()==='each'?Object.keys(S.each).length>0:(!!S.root&&S.perm==='granted');
+async function clearEach(){for(const k of EACH_KEYS)await idb.set('each_'+k,null);S.each={};S.needGrant=[]}
+async function pickEach(k){
+  if(!FSA){toast('請用電腦版 Chrome 或 Edge 開啟',true);return}
+  try{const h=await showDirectoryPicker({id:'svc-each-'+k,mode:'read'});
+    if(MODE()!=='each'){localStorage.setItem('svc_portal_mode','each');S.root=null;S.perm='none';await idb.set('root',null)}
+    S.each[k]=h;S.needGrant=S.needGrant.filter(x=>x!==k);await idb.set('each_'+k,h);await loadAll()}
+  catch(e){if(e.name!=='AbortError')toast('指定失敗：'+e.message,true)}
+}
+function startEach(){localStorage.setItem('svc_portal_mode','each');S.tab='home';render()}
+async function grantEach(){
+  for(const k of [...S.needGrant]){try{if(await S.each[k].requestPermission({mode:'read'})==='granted')S.needGrant=S.needGrant.filter(x=>x!==k)}catch(e){break}}
+  if(S.needGrant.length)toast('還有 '+S.needGrant.length+' 個資料夾未授權，請再按一次「授權讀取」',true);
+  await loadAll();
+}
 /* ---------- 根目錄 ---------- */
 const FSA='showDirectoryPicker' in window;
 async function linkRoot(){
   if(!FSA){toast('請用電腦版 Chrome 或 Edge 開啟',true);return}
-  try{const h=await showDirectoryPicker({id:'svc-portal-root',mode:'read'});S.root=h;S.perm='granted';await idb.set('root',h);await loadAll()}
+  try{const h=await showDirectoryPicker({id:'svc-portal-root',mode:'read'});S.root=h;S.perm='granted';await idb.set('root',h);
+    if(MODE()==='each'){localStorage.removeItem('svc_portal_mode');await clearEach();toast('已切換到 NAS 根目錄模式')}
+    await loadAll()}
   catch(e){if(e.name!=='AbortError')toast('連結失敗：'+e.message,true)}
 }
 async function restoreRoot(){
+  if(MODE()==='each'){
+    for(const k of EACH_KEYS){const h=await idb.get('each_'+k);if(h)S.each[k]=h}
+    for(const k in S.each){let p='prompt';try{p=await S.each[k].queryPermission({mode:'read'})}catch(e){}if(p!=='granted')S.needGrant.push(k)}
+    if(Object.keys(S.each).length)await loadAll();else render();return}
   const h=await idb.get('root');if(!h)return;S.root=h;
   try{S.perm=await h.queryPermission({mode:'read'})}catch(e){S.perm='prompt'}
   if(S.perm==='granted')await loadAll();else render();
@@ -171,14 +197,15 @@ async function loadSettings(){
 }
 function normSet(j){const d=DEF_SET();j=Object.assign(d,j);j.formats=Object.assign(DEF_SET().formats,j.formats||{});
   for(const k of ['wo','fsn'])j.formats[k]=Object.assign({example:'',pattern:'',note:''},j.formats[k]||{});
-  if(!Array.isArray(j.families))j.families=[...DEF_FAMILIES];j.folders=j.folders||{};return j}
+  if(!Array.isArray(j.families))j.families=[...DEF_FAMILIES];j.folders=j.folders||{};j.links=j.links||{};return j}
 
 async function loadAll(){
-  if(S.loading||!S.root)return;S.loading=true;setStat('讀取中…');
+  if(S.loading||!ready())return;S.loading=true;setStat('讀取中…');
   S.data={};S.info={};S.errs={};
   try{
-    await mapDirs();await loadSettings();
-    if(S.set&&Object.keys(S.set.folders||{}).length)await mapDirs(); // 共用設定有指定資料夾時重新對應
+    if(MODE()==='each'){S.dirs={};for(const k in S.each)if(!S.needGrant.includes(k))S.dirs[k]={name:S.each[k].name,h:S.each[k]};await loadSettings()}
+    else{await mapDirs();await loadSettings();
+    if(S.set&&Object.keys(S.set.folders||{}).length)await mapDirs();} // 共用設定有指定資料夾時重新對應
     const jobs={
       report:async d=>findFile(d,x=>x&&x.app==='service-report'&&Array.isArray(x.records),2,'報工_shared.json'),
       cq:async d=>findFile(d,x=>x&&x.app==='CQ'&&Array.isArray(x.cases),1,'客戶問題點資料.json'),
@@ -194,6 +221,7 @@ async function loadAll(){
 }
 function setStat(t,warn){const el=$('#rstat');
   if(t){el.textContent=t;el.className='rstat'+(warn?' warn':'');return}
+  if(MODE()==='each'){const n=Object.keys(S.each).length;el.textContent='過渡模式：個別指定資料夾 '+n+' 個'+(S.needGrant.length?'（'+S.needGrant.length+' 個待授權）':'')+(S.loadedAt?'　讀取於 '+fDT(S.loadedAt):'');el.className='rstat'+(S.needGrant.length||!n?' warn':'');return}
   if(!S.root){el.textContent='尚未連結共用資料夾';el.className='rstat warn';return}
   if(S.perm!=='granted'){el.textContent='「'+S.root.name+'」需要重新授權';el.className='rstat warn';return}
   el.textContent='共用根目錄：'+S.root.name+(S.loadedAt?'　讀取於 '+fDT(S.loadedAt):'');el.className='rstat'}
@@ -219,15 +247,18 @@ function summarize(k){
 const TABS=[['home','首頁'],['settings','⚙ 共用設定'],['check','部署檢查']];
 function render(){
   $('#ver').textContent=VER;setStat(S.loading?'讀取中…':'');
-  $('#bRoot').textContent=S.root?(S.perm==='granted'?'變更根目錄':'授權讀取'):'連結共用根目錄';
+  $('#bRoot').textContent=MODE()==='each'?'改用 NAS 根目錄':S.root?(S.perm==='granted'?'變更根目錄':'授權讀取'):'連結共用根目錄';
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('');
   $('#main').innerHTML=S.tab==='home'?vHome():S.tab==='settings'?vSettings():vCheck();
-  if(S.tab==='check'&&!S.check&&S.root&&S.perm==='granted')runCheck();
+  if(S.tab==='check'&&!S.check&&ready())runCheck();
 }
-function linkFor(k){const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
+function linkFor(k){if(MODE()==='each')return (S.set&&S.set.links&&S.set.links[k])||DEF_LINKS[k]||'';const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
 function banner(){
   if(!FSA)return `<div class="banner">這個瀏覽器不支援讀取共用資料夾，請用電腦版 Chrome 或 Edge 開啟。各系統入口仍可使用。</div>`;
-  if(!S.root)return `<div class="banner info">第一次使用：按右上角「連結共用根目錄」，選 NAS 上放各系統資料夾的那一層（不是入口網站資料夾本身）。<button class="btn sm pri" data-act="root">連結</button></div>`;
+  if(MODE()==='each')return `<div class="banner info">過渡模式（NAS 上線前）：各系統個別指定資料夾，「開啟」連到 GitHub Pages。NAS 上線後按右上角「改用 NAS 根目錄」切換，並把共用設定.json <b>搬移</b>到 NAS。</div>`+
+    (S.needGrant.length?`<div class="banner">瀏覽器需要重新授權讀取 ${S.needGrant.length} 個資料夾。<button class="btn sm pri" data-act="granteach">授權讀取</button></div>`:'')+
+    (!S.each.settings?`<div class="banner">還沒指定共用設定資料夾（建議放在 OneDrive 上你自己的資料夾）。<button class="btn sm pri" data-act="pickeach" data-k="settings">指定</button></div>`:'');
+  if(!S.root)return `<div class="banner info">第一次使用：按右上角「連結共用根目錄」，選 NAS 上放各系統資料夾的那一層（不是入口網站資料夾本身）。<button class="btn sm pri" data-act="root">連結</button>　NAS 還沒上線？<button class="btn sm" data-act="starteach">改用個別指定資料夾</button></div>`;
   if(S.perm!=='granted')return `<div class="banner">瀏覽器需要重新授權讀取「${esc(S.root.name)}」。<button class="btn sm pri" data-act="grant">授權讀取</button></div>`;
   return '';
 }
@@ -236,9 +267,11 @@ function vHome(){
     const href=linkFor(s.k),sm=summarize(s.k),err=S.errs[s.k],info=S.info[s.k]||{},found=!!S.dirs[s.k];
     let body='';
     if(sm)body=`<div class="stats">${sm.stats.map(([l,v,a])=>`<div class="st ${a?'alert':''}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}</div>${sm.note?`<div class="hint">${esc(sm.note)}</div>`:''}`;
-    else if(S.root&&S.perm==='granted')body=`<div class="msg ${found?'err':''}">${found?esc(err||'尚無資料'):'在根目錄找不到這個系統的資料夾（可到共用設定指定）'}</div>`;
+    else if(MODE()==='each'&&!found)body=`<div class="msg">${S.needGrant.includes(s.k)?'待授權讀取':'還沒指定這個系統的資料夾'}</div>`;
+    else if(ready())body=`<div class="msg ${found?'err':''}">${found?esc(err||'尚無資料'):'在根目錄找不到這個系統的資料夾（可到共用設定指定）'}</div>`;
     else body=`<div class="msg">連結共用根目錄後顯示即時狀態</div>`;
-    const lastT=sm&&sm.last?'更新 '+fDT(sm.last):(found?'資料夾：'+esc(S.dirs[s.k].name):'');
+    let lastT=sm&&sm.last?'更新 '+fDT(sm.last):(found?'資料夾：'+esc(S.dirs[s.k].name):'');
+    if(MODE()==='each')lastT+=` <button class="btn sm" data-act="pickeach" data-k="${s.k}" title="${found?'目前：'+esc(S.dirs[s.k].name):''}">${S.each[s.k]?'更換資料夾':'指定資料夾'}</button>`;
     const idxWarn=found&&info.index===false?' <span class="wrnc">（資料夾內沒有 index.html）</span>':'';
     return `<div class="tile" style="--c:${s.color}"><div class="tt"><b>${esc(s.name)}</b><span>${s.code}</span></div>
       <div class="desc">${esc(s.desc)}</div>${body}
@@ -281,7 +314,8 @@ function fmtBlock(kind,label){
     <div class="msg">${stat}</div></div>`;
 }
 function vSettings(){
-  if(!S.root||S.perm!=='granted')return banner()+`<div class="card">共用設定存放在 NAS 的「共用設定」資料夾，請先連結共用根目錄。</div>`;
+  if(!ready())return banner()+`<div class="card">共用設定存放在 NAS 的「共用設定」資料夾，請先連結共用根目錄。</div>`;
+  if(MODE()==='each'&&!S.dirs.settings)return banner()+`<div class="card">請先指定共用設定資料夾。</div>`;
   if(!S.dirs.settings)return `<div class="banner">在根目錄找不到「共用設定」資料夾。目前根目錄下的資料夾：${(S.allDirs||[]).map(esc).join('、')||'（無）'}</div>`;
   if(!S.unlocked){const first=!S.set.adminHash;
     return `<div class="card lock"><h3>${first?'設定管理密碼':'管理者解鎖'}</h3>
@@ -292,6 +326,7 @@ function vSettings(){
   const others=familySources();
   const folderRows=[...AUX,...SYS].map(s=>`<tr><td>${s.code} ${esc(s.name)}</td><td><select data-folder="${s.k}"><option value="">（自動比對）</option>${(S.allDirs||[]).map(n=>`<option ${st.folders[s.k]===n?'selected':''}>${esc(n)}</option>`).join('')}</select></td><td class="hint">${S.dirs[s.k]?'目前：'+esc(S.dirs[s.k].name):'<span class="wrnc">未找到</span>'}</td></tr>`).join('');
   return `${S.setExists?'':'<div class="banner">共用設定檔還沒建立，下面是預設值；按「儲存」後會在共用設定資料夾建立「'+SETFILE+'」。</div>'}
+  <p class="hint" style="margin:0 0 8px">共用設定檔位置：「${esc(S.dirs.settings.name)}」資料夾的 ${SETFILE}${MODE()==='each'?'（過渡位置，NAS 上線後請搬移到 NAS 共用設定資料夾）':'（NAS）'}</p>
   <div class="row" style="margin-bottom:14px"><button class="btn ok" data-act="save">儲存共用設定</button><button class="btn" data-act="reload">放棄修改</button><button class="btn" data-act="lock">上鎖</button>
    <span class="hint">${st.updatedAt?'上次儲存：'+fDT(st.updatedAt)+(st.updatedBy?'（'+esc(st.updatedBy)+'）':''):''}</span><span class="hint" id="dirty"></span></div>
   <div class="grid2">
@@ -301,7 +336,9 @@ function vSettings(){
     <p class="hint">客戶問題點的「從報工 JSON 匯入機種」可以直接選這個共用設定檔匯入。其他系統改成自動讀取共用設定，會在下一步調整。</p></div>
    <div>${fmtBlock('wo','WO 工單號格式')}${fmtBlock('fsn','FSN 格式')}</div>
   </div>
-  <div class="card"><h3>資料夾對應</h3><p class="hint">IT 開的資料夾名稱和預設比對不同時，在這裡指定。指定後所有電腦都會照這個對應。</p>
+  ${MODE()==='each'?`<div class="card"><h3>過渡期網址</h3><p class="hint">NAS 上線前，首頁「開啟」按鈕連到這些網址（各系統的 GitHub Pages）。NAS 上線後改用 NAS 上的檔案，這裡就不再使用。</p>
+   <table class="tbl"><tbody>${SYS.map(s=>`<tr><td style="width:160px">${s.code} ${esc(s.name)}</td><td><input type="text" data-link="${s.k}" value="${esc((st.links||{})[s.k]??DEF_LINKS[s.k]??'')}" placeholder="https://…（留白＝沒有開啟按鈕）"></td></tr>`).join('')}</tbody></table></div>`:''}
+  <div class="card" style="${MODE()==='each'?'display:none':''}"><h3>資料夾對應</h3><p class="hint">IT 開的資料夾名稱和預設比對不同時，在這裡指定。指定後所有電腦都會照這個對應。</p>
    <table class="tbl"><thead><tr><th>系統</th><th>NAS 資料夾</th><th></th></tr></thead><tbody>${folderRows}</tbody></table></div>
   <div class="card"><h3>管理密碼</h3><div class="row"><input type="password" id="npw1" placeholder="新密碼" style="max-width:200px"><input type="password" id="npw2" placeholder="再輸入一次" style="max-width:200px"><button class="btn sm" data-act="chpw">變更（儲存後生效）</button></div>
    <p class="hint">密碼只能防止誤改，真正的保護是 NAS 帳號權限：共用設定資料夾只有管理者帳號能寫入。</p></div>`;
@@ -314,6 +351,7 @@ function familySources(){
 function readForm(){
   const st=S.set;const fa=$('#fam');if(fa)st.families=[...new Set(fa.value.split('\n').map(x=>x.trim()).filter(Boolean))];
   document.querySelectorAll('[data-f]').forEach(el=>{const [k,f]=el.dataset.f.split('.');st.formats[k][f]=el.value.trim()});
+  document.querySelectorAll('[data-link]').forEach(el=>{st.links=st.links||{};st.links[el.dataset.link]=el.value.trim()});
   document.querySelectorAll('[data-folder]').forEach(el=>{if(el.value)st.folders[el.dataset.folder]=el.value;else delete st.folders[el.dataset.folder]});
 }
 async function saveSet(){
@@ -341,14 +379,16 @@ async function scanExternal(dir){
 async function runCheck(){
   S.check={rows:null};const rows=[];
   rows.push(['瀏覽器支援資料夾存取',FSA?'ok':'bad',FSA?'可以':'請改用電腦版 Chrome 或 Edge']);
-  rows.push(['共用根目錄',S.root?'ok':'bad',S.root?S.root.name:'未連結']);
+  if(MODE()==='each')rows.push(['連結方式','warn','過渡模式：個別指定資料夾（NAS 上線後請切換到根目錄）']);
+  else rows.push(['共用根目錄',S.root?'ok':'bad',S.root?S.root.name:'未連結']);
   rows.push(['共用設定檔',S.setExists?'ok':'warn',S.setExists?SETFILE:'尚未建立（到「共用設定」儲存一次）']);
   for(const s of [...AUX,...SYS]){const d=S.dirs[s.k];
+    if(MODE()==='each'&&s.k==='portal')continue;
     if(!d){rows.push([s.code+' '+s.name,'bad','找不到資料夾']);continue}
     if(s.k==='settings'){rows.push([s.code+' '+s.name,'ok',d.name]);continue}
     const sc=await scanExternal(d.h);
     let lv='ok',msg=d.name;
-    if(!sc.ok){lv=s.k==='portal'?'warn':'bad';msg+='：沒有 index.html'}
+    if(!sc.ok){lv=s.k==='portal'||MODE()==='each'?'warn':'bad';msg+=MODE()==='each'?'：資料夾內沒有 index.html（過渡期從 GitHub Pages 開啟，不影響）':'：沒有 index.html'}
     else if(sc.ext.length){lv='warn';msg+='：網頁會連外部網址，報工電腦和拆解／組裝電腦斷網時會失效 → '+sc.ext.map(u=>'<code>'+esc(u.replace(/^https?:\/\//,'').slice(0,60))+'</code>').join(' ')}
     if(SYS.some(x=>x.k===s.k)&&sc.ok){const df=S.data[s.k];msg+=df?'；資料：'+esc(df.name):(s.k==='teardown'?'':'；<span class="badc">找不到資料檔</span>')}
     rows.push([s.code+' '+s.name,lv,msg]);
@@ -356,7 +396,7 @@ async function runCheck(){
   S.check.rows=rows;if(S.tab==='check')render();
 }
 function vCheck(){
-  if(!S.root||S.perm!=='granted')return banner()+`<div class="card">連結共用根目錄後才能檢查。</div>`;
+  if(!ready())return banner()+`<div class="card">連結共用根目錄（或個別指定資料夾）後才能檢查。</div>`;
   if(!S.check||!S.check.rows)return `<div class="card">檢查中…</div>`;
   const ic={ok:'<span class="okc">✔</span>',warn:'<span class="wrnc">!</span>',bad:'<span class="badc">✖</span>'};
   return `<div class="card"><h3>部署檢查</h3><table class="tbl"><thead><tr><th style="width:28px"></th><th style="width:180px">項目</th><th>結果</th></tr></thead><tbody>
@@ -367,12 +407,15 @@ function vCheck(){
 /* ---------- 事件 ---------- */
 document.addEventListener('click',async e=>{
   const t=e.target.closest('[data-tab],[data-act],#bRoot,#bRefresh');if(!t)return;
-  if(t.id==='bRoot')return S.root&&S.perm!=='granted'?grantRoot():linkRoot();
-  if(t.id==='bRefresh'){if(S.root&&S.perm==='granted')await loadAll();else if(S.root)await grantRoot();return}
+  if(t.id==='bRoot'){if(MODE()==='each'&&!confirm('切換到 NAS 根目錄模式？\n個別指定的資料夾會清除；共用設定.json 請先搬移到 NAS 的共用設定資料夾。'))return;return MODE()!=='each'&&S.root&&S.perm!=='granted'?grantRoot():linkRoot()}
+  if(t.id==='bRefresh'){if(MODE()==='each'){if(S.needGrant.length)await grantEach();else await loadAll()}else if(S.root&&S.perm==='granted')await loadAll();else if(S.root)await grantRoot();return}
   if(t.dataset.tab){if(S.tab==='settings'&&S.unlocked)readForm();S.tab=t.dataset.tab;render();return}
   const a=t.dataset.act;
   if(a==='root')return linkRoot();
   if(a==='grant')return grantRoot();
+  if(a==='starteach')return startEach();
+  if(a==='pickeach')return pickEach(t.dataset.k);
+  if(a==='granteach')return grantEach();
   if(a==='recheck'){S.check=null;render();return}
   if(a==='setpw'){const p1=$('#pw1').value,p2=$('#pw2').value;if(p1.length<4){toast('密碼至少 4 碼',true);return}if(p1!==p2){toast('兩次輸入不同',true);return}
     S.set.adminHash=await sha(p1);S.unlocked=true;S.dirty=true;render();toast('記得按「儲存共用設定」才會生效');return}
@@ -393,7 +436,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{if(e.target.dataset.folder){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw1'||e.target.id==='pw2')){const b=document.querySelector('[data-act=unlock],[data-act=setpw]');if(b)b.click()}});
 window.addEventListener('beforeunload',e=>{if(S.dirty&&S.unlocked){e.preventDefault();e.returnValue=''}});
-window.addEventListener('focus',()=>{if(S.root&&S.perm==='granted'&&!S.loading&&S.tab==='home'&&Date.now()-(S.loadedAt||0)>60000)loadAll()});
+window.addEventListener('focus',()=>{if(ready()&&!S.needGrant.length&&!S.loading&&S.tab==='home'&&Date.now()-(S.loadedAt||0)>60000)loadAll()});
 
 render();restoreRoot();
 </script>
