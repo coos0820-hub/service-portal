@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台灣普熙技術服務部 系統入口</title>
+<style>
+:root{--bg:#eef1f5;--card:#fff;--ink:#1d2733;--sub:#5f6b7a;--line:#d9dee6;--hd:#1f2d3d;--hd2:#2b3d52;--acc:#1f6feb;--accS:#e7f0ff;--ok:#1f9d55;--bad:#d93a3a;--warn:#e08a12;
+--c-report:#1565C0;--c-teardown:#6A1B9A;--c-fs:#2E7D32;--c-cq:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+header{background:var(--hd);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;letter-spacing:.5px;display:flex;align-items:baseline;gap:8px}
+header h1 small{font-size:13px;font-weight:400;opacity:.75}
+header .logo{height:44px;width:auto;display:block;border-radius:4px}
+header .ver{font-size:11px;opacity:.55}
+.bar{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rstat{font-size:12px;opacity:.9;margin-right:4px}
+.rstat.warn{color:#ffcf7a}
+nav{background:var(--hd2);display:flex;gap:2px;padding:0 12px;overflow-x:auto}
+nav button{background:none;border:0;color:#c9d4e2;padding:10px 16px;font:inherit;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav button.on{color:#fff;border-bottom-color:#4da3ff;font-weight:700}
+main{padding:16px;max-width:1280px;margin:0 auto}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-block}
+.btn:hover{border-color:var(--acc)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.sm{padding:3px 8px;font-size:12px}
+.btn[disabled],.btn.dis{opacity:.45;pointer-events:none}
+header .btn{background:#34475e;border-color:#47607d;color:#fff}
+header .btn.pri{background:var(--acc);border-color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:15px}
+.hint{font-size:12px;color:var(--sub)}
+.banner{background:#fff8e6;border:1px solid #f3d38b;color:#7a5200;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner.info{background:var(--accS);border-color:#b9d3ff;color:#1b4a9a}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+.tile{background:#fff;border:1px solid var(--line);border-top:5px solid var(--c);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.tile .tt{display:flex;align-items:baseline;gap:8px}
+.tile .tt b{font-size:17px}
+.tile .tt span{font-size:12px;color:var(--sub)}
+.tile .desc{font-size:12.5px;color:var(--sub);min-height:34px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.st{background:#f6f8fb;border-radius:6px;padding:6px 8px}
+.st .v{font-size:20px;font-weight:700}
+.st .l{font-size:11px;color:var(--sub)}
+.st.alert .v{color:var(--bad)}
+.tile .foot{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:4px}
+.tile .foot .hint{margin-right:auto}
+.msg{font-size:12px;color:var(--sub);background:#f6f8fb;border-radius:6px;padding:8px}
+.msg.err{color:var(--bad);background:#fdf0f0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.fld>span{font-size:12px;color:var(--sub)}
+input[type=text],input[type=password],textarea,select{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;background:#fff;color:var(--ink)}
+textarea{resize:vertical}
+code{font-family:Consolas,monospace;background:#f1f3f6;padding:1px 4px;border-radius:4px;font-size:12px}
+table.tbl{border-collapse:collapse;width:100%;font-size:13px}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tbl th{background:#f6f8fb;font-weight:600;font-size:12px;color:var(--sub)}
+.okc{color:var(--ok);font-weight:700}.badc{color:var(--bad);font-weight:700}.wrnc{color:var(--warn);font-weight:700}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:#f1f3f6;border-radius:12px;padding:2px 10px;font-size:12px}
+.chip.new{background:#e3f6ea;color:#17703c}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f2d3d;color:#fff;padding:9px 16px;border-radius:8px;font-size:13px;z-index:99;max-width:90vw}
+.toast.err{background:#a32d2d}
+.lock{max-width:360px;margin:30px auto;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" id="logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARAAAABgCAIAAABaPbo3AAA5OUlEQVR42u2dZ5wUVdbw/7eqOk9iZsgwgEQlo6IiZhDFHBEzrhl1XVd3zTmiGNFVzLhmELNiQkElC4LkIecZmNy56t73Q1dPd890D4Pi8z77bJ9ff4CaW6duOvnce4Q6hyxkIQvNBC07BVnIQpZgspCFLMFkIQtZgslCFrIEk4UsZAkmC1nIEkx2CrKQhSzBZCELfwoYGZ6L34tQZf6T+BPbC4FIIn6lknAk4VEy8afmgI1WZPyuUiiVeRRiz2fpd0xUhp4jECIJp0JJ1O+Y8z/YGYFI2xO1+xf37HNp2+/lERkZ31e/i2qEQOgoiZJp9pZI7WHT+Bu0z/SKpgOYFhELGZeayVNXv58FOMHQEAIpm5qjGJ0ohSmJxtEmLXcCHOAATUepNENuPI3NmdVmDjyj0qCBwLKIKszUnjvAiPU2w35tDjcRIDSEln6VG28GaRJVRJPmTYv1RCC0phYiuTPNGX7a9rsdUaylPSJrt+2NzEMVe8zVlMJUhEyc4IrNRT1CDZFKxzGW08SMa1rDDmhaykrHMAQtJBTm0as/XQZQ1JFWnWnR3m4TCbJjDf4KKreyaTmbl1C+AxO8IET62dF0LIughQFFxbTvTesutOuJUuhODAfhAJpGzU62rGDbSnaUUmfhAFejjdh4GmP/VU3yeF1rOC2athsKT5YqQYmEfA8lXWm1jy0ANZ2wny3L2bWFOgsXOHSk1Wg7GDanyLjEFlISlkQlLnCmQ1I/jVGLkIkX2pTQfj8MJ0qi6QRr2LSUXWVELTygp26V+rEYBgqEhjQzfiWl8w57pyW31w2bQWQCaSIVYYm5uxHF+pWaSyZQCt3g5s8paIO0kiRpM2SaNPFXsWIms95jzXI8wv6DEFw/hbbdkWacThSaTs1OHj2JoB89ae8KjZBk3/258rVEe0BaODzMnMQ7D+PTQRGRSOh7OEdeTN9hFHXcfSfrdrHyZ2b+m1nvYTWi6tjW9EtyXBx0OkNG0/0g8lo1hTASZOtyFnzCD6+zYR0e0ASAqSgoVn+fKjz5KCsxaqETqOTRk6mrThl1bIfVWZx0OcdfTySIrscHLjFcTLqeeV/jbWKDakQkFvQ+hCMvpvfRFHXA4U5pE6hm81Jmv8+M19lZiS8Vm4Lr3qbLQMwoQktPn5aJFWXnRpb/wNwP2LwZbyPGKgANv6RlIYedz8FnU9IXT15Km9pdlM7h53f46R2C0ZRxCY2IpKQHf5sMAoeLr//FB09kHLsQmIqCIv7xGZ5cdAfzPuCVm/E5CEa54hn6jSAasrWAxuzJDCNNdqxl+QzmTWXrNrxN6eBG+h50HkRu0e+0Yvocw0k38eFDvPcALh1lgaCkL226NWwZrEYz0nxdgTuPjn3SIG/ZCQt0nboIrdpxwWMcOjqx4PVsWCWJoHqdRmjkFLH/Sex/EkdfyguXsW0DHoFUCVU7IBl6GqPuTfq6SuXuIqHhCYHTQ+dBdB7E8dczbQKTHyAaxKmDheFgnwMablkgEkAz0qyHEEgo7ED7fdMMPKcQmVk10TSCkuLWnPcIh1+QYs4lgzefHkPoMYQTbuDt2/jmDbxJ0kxB25607bn7Jd7nAAafzul38Mk4pj6KoSUUXyFQgojkuDGcfTdFJekx5BYxcCQDR3L8dUy6kUU/pFCvAqebjn3t/7Zoi9wds9YclPTD6QFo2RkZ30it9qFN92aM6EAOGcWZd/Pxw3z8BJpApDdNM6hkkQCqBUo2tKQzibZ6mztmBLt8jLofw+Df9+DR4ghlAqFSCEE4kFl/tVLax0SnZhCNoEEoQsfu3PoFrbsmmtUr1pqeJHAtW6dPHoJS9BvO7dO4+ygqtuPQUBIhCElG387Z99kv2pqksBEmjHstQYqxh0rizee02+h+EOPOJFyDAKUI+zGc9mATo/Y3pVyZEZTEMtGNpCHoSLMp3TUg6bwv/5hK255YFrEJ2FHKmvkEq22dpN2+dNkflxdpUtSRayaRV8jUp1I4dzSIkkiJNFWgKtWJqoRmYDjx5NqiJreYc8fhbcHrt+LVkMqmlqjk8mcYcY2tcguNYA0blrBtOZZFThGd+tG2hz3YfQ7gzm/51xi+eoOcZJpRmGGEjqZhRpul4UQCOFwA0UjicTSMkkgLoRENpTEHlcKdY89zXkvOH0+rrjw/Fnd61TSTDaPZOzWZYASgZ+6wjBsq8X15+l388jnL5uEzGiFUDf1aaVwrqR2oJwkLvHnc9AGtu2JF0R1JbWJWpkXID+DJSdrrqdZUNEzbnlwwjvEX4BC2Jjb6Ns6+z16zZKqL0ZimJ+Y6tgC2iRL3EEiTPsP45xQeOIFoxH4e022EaN6o46ynfroAoeKeugwrFZa078JtX1DciWgYh4t1C5h8H0u+pjaQ4M1uaNOTkdcw4hqkhVJc+CSV25j+XoK7x76ra6z8UYw/C6eRmLqYrm44Kd6HY/7Coefar5xyM/OmsHwBHh0FEYurnmPYVfbSWFE+fJjpr7NzHaGYUQE+Fz0O5dRb6DsMM4puMHYS0uLbt/BpSbI8Pg/NtAsSe0w0nE9do3oHDx9HXQ1GI0po1Y1DzuLIMUiJsjj2apZ8xcyPGqqsTXrJMoidNfMacUeBZVHSh7xWCfKN2dNCcNDpLJ63my2yZ3EjjRAcPYYOfbBMdEeKPyrs56OHWfAJwWoAXyGHnc+xY23GkwyxJ0PP56OHWL8MCwYexqj7E5TQmBGE/VRtJxqiqKOtkdeLjtiQY/uj9zGccC1vP5ZCcn8eKDCcXDuJ4k6YYRwuZrzG82PxB/CAV4O4NaIkW1byzLWs/4XLXrQl87mP8MsXhOrQU9X2aJiKnThTVzv2703rmfcdY3dy3HWYYQwXB53FbwvQdGoinHgpw67CjGA4qdrO+DNZ9BNuMCAnxnEk0TC/fMei77jkMU74O1YUzeDyiaxfyPoVeAx2o4H9LpBRtq2iOoDRyO28YQ0/TWPNPC59HstCKYZdxc8f7YmESSs9dm7i3iMxU5mdAAtadeKfH9OpX5ISJUBR0g9n7PW9tT8UGgwYmbJZY5axpjPlbv49ntx6h/IGFi9k9SyueBkrimUmSNoy8VcQDVHcmTXLcGicfW+K8y154OXrmPowv35JXTnSwlvIgacx+gF8LWxdTpEQINLi+L/x5XNEw5lZo4j/Gj/cI/ahU2dxwvn0HGrv3VU/M+FSsMg1sCykTNl8Lg23ziev0mV/jh1rq/uHjeaTieQYJDuhhcAQGI0diQK3TtDiq2cZdqXNsPY5ACdEorRtwzkP2VqxGWHCuSz8iRYOLMvWi+qRe3WkZOKNeHI5+nLMCC4f5z7CgyfvsW+2+eEghwdnKM2gXBoexVcvcMwVdBkIis4DKSykugKjocdyTySM0HC4ESZaEjdS4DLYsIFPH2PspBSrQ0EkuJeHb5nkQHGJrQs1gJqd9vZQoIGu4dKYPZkNv2KGiYTswSuFZRINEImiCwR07U/Pw1AKTWtILRsX89AJbNpsO08EVG5n6r/Y9Cu3foXLl+T1j6tbhe0YMJzFX2UWrTJduFPucUBQSnwGI65DKTQDy+SNG4ha+HSsdDaPlAiFT+OdW5kzBSuC7qRqK25QVrqYbOM4hsICobBMrAiGE8DlRYOQ4pjLyC22Sfer55gznQJHOgtEIU00DbfGpBvpeywtOyEtBp1Ar/1ZueDPyj+JCVXViGAsiWYQ1lgzly4DkZL8VngLqKz4vRKmXnH3hxpKGLA5U6f+DSNMQrB6NlGSePDeUMkiEKprGOCLbc3RD+HOo3QOtWUEqgjUEDEJw8rVxHQTDfRY8A4QaCB0oiZ9hqHpSAuhp+zISIjnL2brZgqdiYXXoNDBgp/5/ElOuw3LRFkEaoiGURZmFJeXVvs0JS6EhiYaum6FjrD2QMhogqCk9yBK+tlMfel0ls/Bq2FZDT/XYM2DNSycbnMWHRykkSS2atpo5XSDUAR3Dobb1mA3LiYEOU4GnwEK3UE0zNcTcGpp6DCZeh0GFbV8/wpn3Ytl4nBx4Gn8tgAn/9MgQJfkFcf92kHMcNqlMJqND7z5HHMBltlQ05CC/sM4/CI7QFYfZglUM2cKLtKEpX4/wegEYcty9jkgTRi0oC1jngYwo1Rvo6ac6h2Ub6J2B9tW4a+ifAP+CnZtJQAOhUu3B9exX8P8iJhvatVPrFhIjp7ieInhz9H4+GEWfIyyCAepLScSxDLtvRuNkl/c0GSMddKTz63fIBsxHgGWaUeTdL1Zi2JB18EIgWmi6SyeRkTg0hraABHZ2PBMuG+0DMwxLEnrWTUj6HDSTegG0RAON4u+IAodetKuF0ohNNb/wpZSnGp37mCFQ7DwM06/09bueh2BR8e0/hSq0Ax0o2H4K6bb+02KCuh5qP2nbauo2oGeJlGgeQQTW+kWbbl6UnNNUQWvXsPadRTo8UDHXjJyDfjuJQ67ADR7WzdwfGs6hoOikjRBAMskUMX2UhZ/xYw32FCKV+DV4jGiRixl6XdYaU0LhVAE6lg2N7H/khs2seK6QecBzeJQu22j4oI9pkluXoqWbo937I7Lm86EVWg61eXs2pKiZgOePLrui0NvlLig0b43wy5jv6MAHG7mfsDcT3BBfmscLqwoukbZWoIyxU2cSUcyFNtXU7eL/NYARR3x5VBRzV6zepO+VbeTGpXG6NegVQeufon8NrabcfE06sy0/Tf2bLNamcevJ3ldY//Y/yQWfkVVGe695y+SEjcsmcGbN3Heowl2aKtnqek2scWudw8IgW6QW0xuMd0P5vjrmHwfHz6Oz2l74hvb6MEayJxbqQs7Zpec0ahAE7sRqtJKj1OBpu2ZUzE58ttYrYp95cpX6TYYy0xhLlqM3RhMm8AL1+PTEptDSnoczLgFadwSmmaLAimpKWPOZN66DU2gILdlog+blzWL7GMumEiQ2p02wRgODOfeN/uVwp3HabcTDtq9tTmORX4rWnVjv8PIbWm7GSu38tmTOEXaqOMeEYxIRNPSe9KSfKxKcvDZFJdwzzDM4B6k2DTHkep2MPkxtq/j1H/QdXAGB65K2DmJ6EfckFUSbwEXjica5It/pdj6TWj/ab6gGsoEoXaf8LcXPc6qGepuLGEk4YJvFOhI7+DxZKB2E6nQDWa+wcv/wAFuJypV1MfSupq58ZVKZeR7W7bEZsmbz1n37qaZ4aJyC+NOo2wbHi0t19tDoz9QnS51ViEEvsKGM25F6XYwp/+T1+/MvEXE7yQaj8bMKcz/gM4D6DyQlp3Jb0Xrbrh8tOmG7sCbjxApWat2kDEmSTQ7U27U/cz9gGBthhl0NuXtjSWbNiQG0MVu9kegCiXToFUWrhw7v6OZkGztZCLvdb/YOWB2moXE4aZjn3hEVaXRwOsqWL8oiQPGZHsurbuQ2xINpMVJN9GmG0+ejxVGg+rtCSndtlczlUokONzkFsdV2ShWY2tb7DlP3XOo3sHcD/jwEbZtyEQtexiHKV/HXUPjRr9KiR5YcNjZnP8EupGY5VhGxuEX89njRMMZBvb7/AECFDkG0mL1QpYvRMa9PYbA1wKHmzbdcXpo052C9hxyJq27NgzdxLqXU0iXAWz4lW4HNUwFAnoMQXsswwIIDJ2W7ZBx11YsHSZQbTvx0pKKEAQquW0wtZUNQ86aQW2Qs2/hlJtTUmOa2BYCyjfa2W46dNgP+WmaYyHPj0moZ0IjKmlTwmPLcXnS70UhWDOXu49PCVyq2NwW0mkQF46j0wCsKAeexmk38u97cUDtTqyozRlb7YNHR0qaTnkXAktRVEJOkT05ldvw+xv6IZpIC0qrjqZJUNQI1vD5k0SCaMnTrhAawVo2L2XjEsrKcdAEtey5hKnZQTRdwA2Y/Cz7HcngMxOGeGzzFXWkbU8igXSqQgH5baj1Y4iE/1EIlEa7ng0dxw0IWCpMExk/5VIfyYgqaiuwYNtWFPAlFnzyGHd8Tef+abLjUPiK2LKsUcqtBoreR9OhI9s24XZgRRM91B1UR7jwVkbegBVJrJBS1FUQDfHpY8yZnF6uKkVNOdU1Da1PHaohXLdnfGPtfNu0APoMw/FIBiVNNZScu8nQ0VIClyrODup2Mftrdp7GQ4tw56Ikh1/Ep48TqGPzSsrX06Y7StJ5AO27s24lbr0pz3IsMbn3EThcicBr0MQZTyaMTWBRxyZljEAqijrgybX3XsWWNJQZrGbKPdTIhtNeP5NO8Oko1bT9qe0ZX9cMdNAFOomfBoaOJC5GUn12SuHNx4w0HIC0cLrZ/yTqJEKLu/wMOyp8wCkZnG8KAbqB00VuAe06074r7brSritt96HzfrTrQhTcDnKc5DjIdVKcw5adLP0O0ptxCI2l34JICcLEDpl587ngCSQEonE3kUApKiL07MOJN+HNJ7clvhb2L6eQNt3o2Ied65vUlR0YAiO+Ke2fAyO1D7sV+04onU1dBbqBlPQ6jB79Ccl0hBpXLDWNqEbHfjjdu0lqjK1d/ZFSpUCgCVoYbF7Pmrm2f6KgLXnFCKgNsugLW60ynBx9BRGV0Ti0Z1jh0TnqsoRdt+AjW6ctW0fVdpuquw/B50JmOEYnNEyNdvuiGbYttHlp+mY5heQY5Bjk6A1/Ph1DIK3d2oR7GFPV9DQ/3cCC40Zx4GnxJMVkR6SgpozNyxomO8cSFk+/k8OPoy5KnUmNSa2JCaNvpv/xDfOOY0teOgevxq1f89BCHvmVx5bx2HIeW2b/xi3hrpl0G0BllNoIwSh1Ecrq6NCSfsfaIYKGVq+gfC2rf2Pjkrj/KllnUww+gzs+Yd+DEBoRRVThyuO4C7jlC9w5SJmysSwTKSmdw6If8ORm5FXJrzT4NV//VgqHzvYy5kwGgTRxuDj3MTSwVCOaUbb6oQDJkZf8Ll2/fpiC7aU20WoG7hwscMDXzxEJoRkoybFXc8BhVEUxHGlcPjEWWW1x4nV0GWRL6RUz+e1H3BqaRk2ADb+iFGaUNt0YdBx+GfclNAiwCpAccra9ZNJk/QKMdGctpWWfLUv7a97Z9WbGYTSAlp0ZtyS90U99KEOl5NIDoVq2rWbhpwy/KtX/LUDhzefmz1g0jdU/UbOLVl3ofRRdD4wnt6S64PxVLP8BvyRUR6/D0ne1sD33zOC7V1k6nfJSCtrReSBHXkS7fRsSTEx8r19I6UIsmHIXf/sAqVKGEHP3DTyRASewdSVla3B6adOdog7x+GwjjqNpfPQgkZgm/SelRSVHpQSfPMrQ83G6sUz6DuOS8bz8dyLgjudTq7jCakpqJaeMYdBI26f8u79bf0xDN3B6kOBzULqS717guL/ayZfXv8+jp7JwNjlgaKDZJo2SRCUhyVEnc86DthGoFO/eRlTi0O1A1qx32P9kexXOH8/KWewow5c8KIWUVEYZdjoDR9ppB6VzWLcMp9Ys/+Gew55MmeFs8iyOaujQiInmWe9S5WfRN6z6iR6H2lnfidCbQmgMPJ6Bxzf0MTQw+3Qn055m6xZcgrdups/R9o5sIIWUwp3LyOsYeV0agzuZWmKfePtWAkFyDWZOpe/zDLvSTp5NOIji4dH2vWjfK8mZK1LTNBXSQjeY/hI/f4yneabqH49KuTTWl/LWTYx5FiSWycgb6LAfb9/JmnmEk2jWgBatGTWWU24BYacC7a1uAFLh1njzVrofQtfBmGHyW3Pbl0y5n+mvU1mOKe0NYkDrEo6/hhP/bq+F7uCdW1g4Mx4OEngEs6Zy0iI6DcCM0Lord03npWtYOp0IicsbPE5GnsOlzyWW6ZNHCFv2mdz/OYJJryE0GWGwsyFVopnhZMsy3rwNt0Y0woQx3PUNRSVYUftgUL2csY80Cluw1LNtW4sT6E4Wfsrkh3Bp6IJVi3ntei79lx28Tw72xWwMZcXPkyn7DFl9HCa2upoOihcuY+6XdvKVU+PFa3C4OGKMTaJ2MpWwG6v4uBreUCNtzUQ3+Oktnr8Sp25HeFXSW8mB1OaoPclvNfGKlHh1PnmOVl054QYAM0K/4+g7nNVzWPkz/p0IHSHoNJCeh1LQBqBmB9tW02NIwyWu/9Zu9RO7k9IOB8ckmA7BAOPP4h9T6TwIKfHkc/6jnPA3SueyYRHREO4c9jmAbgfha2EfCtQ1Ph7H+w/bKcyxSdA1QiGeu5i7vsdbgBmh/X7c9R2lcymdTdU2gJZd6XEwHfvYB5Z0B9Oe4acP8WpIaZ8Vb/6I/hDBxPTOhgaoaJ5DPN7st2957hKqy3EKdI3Nq7l/OFdPovtBqQFvkZR6LFBJzzXd7sOMSUy8EjOEIewt8tnzVJdx4Xhadm6IrT5rOCaUbRIybVKMSaSNS3jrZmZ/bk9ujF1JyTOXsOE3TrslERlIoE3eK8k91BAaYT8fPcKUB0Ci6XZqjD2NSQpeIqiXafJ0hEhpE9uOTUV+JS6Nl//OllWc+yA5hTae2GnkxuCv4PFzadWenkMbRlHrowK7dWobzjipCPJa2senlYVLo2wjdx3FhY9y1F/sxi3aceCpHHhqmjSFym28cxvTXsWjpSQUSYlbY9WvPHg8YyfRNq7adBtMt8HpIrDw+RO8cgPO+vPSInVEjj+TYKrL0B02l90jMCOEaln/K7PfZc5UTGVfNKEUHo1Nq7jrCIZfxpFj6DIwvdc1eWOEA6ycyedPM/dznCR5OS28OjM/YPkMhl3GwWfTuX/G2GgywkiQtfP5/lV+epfaQOo5coUmcMCUx5n1LkdezEFnUtJ391H57aUs+JhvXmDtqvhlNPFDBNVlmBGkTLr6Q6NuV0ZuJyBUR6CaSDDliLLDRTSc+ZIzhVC4NT57gV8/Z8TVHHAq7XqlaVm1nV8+4eNxrChlxBn4K0EQTHJk11VQV2Gbi03DpsUEqggHcHmTTkDFtcRQDROuYPorHHsV/UbYYi0ZLJPNS5k7ha8nsmMHObFNkk54Lp3N7Qcz4mqGjKb9vmkYR6Ca5T/w+VMs/A6XaJhp4a/CX4W0qN25V4SMSF+BLLcY3djzDyjMKNEQNUEUeLAP2ScbxJYkCD6dLgPodhCdBpJbTNvudjZXLOBavp6qbZQuoPRnNq/BAo+WRiG0L/KBXIOSvuxzIJ0HkFtEcWcKWid22/ZSandSvp71i1k/j61rCYMH9AxKvKYTsYhAjkH7XnTen7bdaN0NJXH5MBwEauKuvxVsXMSGX6n029csJV+XITRyi9JwHCWp3ZXeJFXg9uHNb5jLLDT8lURCu5Hw9T0v8NK+F50G2KGJ2Gubl7L5N3aUYYBDw+HCWwAQriNQa2POKbSPuETD+CubMlcNg9yWdkaMv4pwMPVYoUAIghIFLYvpsB8d+9oRQ02ndhfrF7JtJbVmxgufkvdMVBKGfLc9KG9+4kD1tlVsXsq2TUjwNDL0FeQU4PDYanOmad8LBGPxOy/ys606PW4LpgsRxdL+wmDGD6g4k9I6LEk03gEnOIVtz2UynISGZRGFaPzEiwN0LTFnUYUVl/YO7BP8Td+8GLNe6tHWS2IRz+aIBUmt+EV+RoaL/BpPo0pNrU+nXiHTuSH1ZmYwawiBaREFM3X6jVhv411V8TnRkvyRVpLvRt9d9okVtzoz9S1mi0al3ZnkWEasM7rRnLvzbOvAMu3laBDtdYBDsyN7meazOSP6QwTzB3Mlm3MLqBa/O6J+/RLhlri1vdu7FZOd8Vo6bIAm7OQxVFMX32RCW28OifpsS5ESxGyC9oTY8/nJcIXint5wa58Aa2CmJ3dVpLkesoHfb/fBhvpLrXZ3jWgK5ph5qfbSoJpc0z0a0R/ykv3ZAQSZmkiWfIeYknvoEoxF0zJhiy2M/D2dTF4MlepAV3uFcWT46B+d3fjlT7v50B/rcDNZj+0j4X9kUH/6Tjb43wLqfzG2LGQhoU5mIQtZyBJMFrKQJZgsZCFLMFnIQpZgspCFLMFkIQtZgslCFrKQJZgsZCFLMFnIQpZgspCFLMFkIQtZgslCFrIEk4UsZCFLMFnIQpZgspCF/7/wx87DCM2+gojUazaTnytrb1Ygy0IW/lMJRkBYEo4Tgwtc9SVyJKH4cye4swe6svBfTjCxe9f7DmXfw+0bBxdPY+UCXDphix6D6H+c/Xz1LBZN//Ou7sxCFv5DCCYsGXQCJ99sPzFDLF6A10HEYt8jGPWA/XzaBOZOx5UlmCxkVbJQHVbUruwRDiCwq/xEAlhRu75msPbPqMGWhSz8Zxr9ugMl0R0pN9bFnkuJ7miqQkgWsvCfBtndnIUs/H8hmOQb00RWCctClmAaQ/ItabEy8JqBpu+mFlwWsvBfasMYjsQtlYUdCVjofvxQ2D5GT/F77Mna/Vn4LycYhYAty+1rc6VkxDUoybY1tNmH46+zS+0IjS1L7QK8WcjCfz5kuIy8WSQj0Jzc8il9h2Vss+x7HhiJFbI9zlnIwn846Hf3+d2vCkImP74BihZtyClK2PpKqq0rxFfP8ewYwiYukZUwWfg/LWE0o6l6V7F71E1Fm0607IK/ipadMFz463C5iITx5mBFKFuPrwW7NrB1LUa8VkF9xQW7oKUGjSrJ1BeZkPEiE7FqFrK++kWsVl68P8mFQYRI1AyTjaplxCpiK4lu2JWGYsVqYiVjhY6IfVRDWvGCFhKhI027CjmxslAWKHQjzSf+6IJoDSNX9Z9IHlrycsRSkBp7JmMvakm1PslQiy9WkVNPVz8l5svJhLwBNhUvV5q2q41HlHESBJpuVy9FQ5roBipeZzfWn3oWHKvFG1s1u9iljmWh6ymTY1kpe6x+UPUDjG2D2IgSdSObacPUmWnK+tiDAQd4nNRFOPISTr/Tfv7CJXzyHi2gCs64mCvftZ9/9jgT/47LSTBMROJM9cwFLESsVll8Cuy6YpZdK8deNkVU4gCXBhJL4TftgWngTepbVBEybTJzpOZ9KuySVwZUm3hAKkISLxhgKoImEjwQkXjAUpjghJCJF/yWXTkoLPGCgGqz4Sf+KLWk5rMSrw8VG7WpCJhpFjDWt8Y1m13ghqAkInGAByRUm2l6mxOfnIZ8E3wQsIimQ+5ohM0AN2jC7mpaZ48ANzgzVx2LLWLQJBdCkogkB6pNBPgEQuG3iMTqMYEEL9SYOMCU9sM6Ey/UmRjgFXb/faAnlYvyW0RBQC4ELSLgBR1qTCzQwZPehWw0NubRdM78K978OINPKuer6VRuZsWPbFiBEJhRpMQKY7hx+cjR8bkww7h8KEU0jOHEioAgEKakG4PPoOdQHG4braazdRWLv2b+R0QtHALAb9G6FQeeTs8hFHbAMtENgtWUzuOXjyn9DQMKijn9cju9oG4XX/8LM4qmEZF07cdBZ2GGcXpYMZN5X+LSQGEp3G515j/Fgo/ZspxL7+S7l8hvzSGj+OpZ1q+mVStGjcXt48d/q/7Hi+9epHVXOg1gyVcceh6fjOOIc9m1CSvCgJF8Oo5omFG3sGoW8z7fO6mlmk7AYsiJDDrJ5otKsmszCz5mzRI06NCdE28EFS9sLxGCDb/y2UROvYaOfROF/mKFo+dOYdZ3DD+TPsNZ9TNfv06ej/PvwlNfElDZhdrfux2Hi8vvsd8FG7m/krdvZ9j59DosqRioRAjmfsiKH7j2cXSHvUPMMCt+ZN6HBKP0OYSjLwVBNJQqahSRENMmsLaUnKTCvckCNizZdzBHXMyr1zJ4BL2P4r07uOohwnW8ewdRGH4+g07kt28I1tGiLVOf4JIHWDad7oew7Hu2l3LJLUx9gEtuY8OvfPoyIy+m+yFMuYddOzBACMKWOukK0f0QogFeuprDz6D/CKY+wI71jLmfoo5sWMS3Ewn5Gxe3MhpRt0LTOPNuPLkZlzYS5P27eP1RNANNQ2q26iIt+2e7yASahtCJKM65mdNuSxSyrIfeRzP8SpZ8zRNn46/Bkoy8jFH3kd+6YcsDTuWMO5j2DC/9g5yiRHJnbTnTXyYaJ5gugzj9dvtP307kxy/xaLZwr4uIoedT1IEZkzjlFqZN4JRb2P8kgjWsuZPbvkJKVs2jbQ9xzoMs+Iheh3HUXyhfx9n38eXTHHs1K2YSquWUm1n/CxVbOO12vnmBnz7HJfaCkBEaEYueh3LM5SnPT7uNiZfx+ZsUd2r4J2D1LD6YyMFn0+uwhn+q3ck339FnGMdcTk4hn7+O082Ia3G4G7b87DGcnjTIgTdvp/9xDD2v4XN/Fat/4tixKQ+Pu46FnzN+FGsW03EuFz2O05sG59DzeOMmvnkNHVzxEu3JEKph+FXMeJ1jx2I4aNeTkdcT9jPtGXoM5arX+OxxlMGA4+jQm/efZPjVhP0ceQnBGgJVjLiWr59nxLXs2sT0f3PmPRSX8M3zrNrKVffww2ssX8fRl2KaTH0Up4uRf6PHEHZu5J37GHk9y2cw+mGkxeSnydexzGaoZP5KXB67/lbVDluhV5IW7dF0nB5GP8z3rxEJ7H4fBKsZcjSjH7L1RX8ls96jegeDT6PzQLtN3+GMeYr7LuLEUVw+0W6pG5ghyjdS2A5XDtEQmsGJN1FbzvevE/bjcAHUVaLp6AaagQFWFGliRjEchOsSKoGmETb5+jmGjFZDzhWLv0JJOuzHRw+z7xEMPIiS/lzfnV9K6dsBM0ywhlAtdRVYJoEqzAh1OwnVEQ2paFj0HEqgmmBNyif2ikoWqMUyWfwVr1xHYQkjLmPIaC56kllTCNdimQSr+eA+AnVooBvsWIsDasuxTDVvqpj/JS4DaWI4WfUzXghUY5kEqm3zrKaMgnZ89hibVuPUbda2q4x2XbBMIgEm342/Bg27lroFwWoskyVf8+PkOHIXy3/E6SFUi8PNsxdQvpVeB3PSPxg4kiPP5eOJfPoCc6Zy4aMcfiFKYUYStlluMVe/yqDjefUGtm0hR4e4Zaskbo01K1j1M0dcTJtuTLqeQ0Yx+33cPgafQe9j+OlNxv8DAbf1p2o7UUXVNsywXQI6HKSuAl1nzVwMF8dcQKCamnI0nYv/zuEXUtKXSTdRvp5W+9C6I4H98RYw+R72P4kPH6JiM606U1fB6tk40lRZMzKqB5oBULmVmwdQXYlTp87i+DFc+QpWFN1Byb5Ew5lXPiGE1dDRQknMCA43Hz/MxMdxwnv3ceYtCA3/LhDU7KTYzVn3oBRWFMPJsu955a9sX05RV66amOCgZ93H2oWYEVw++1u1NQTBYVIDoTo0A02iGSn5oErihgUfc8otdOzD82PofRStuzL4VIo7U7wP0RAlfSkrx52D4aJtL3IK8eSiLLwF5BZR0BYBnjzWzKPbQQjBihl48veyt1wIdINwLRvXsHkN6+ew7xEUtKWoNWYU3cCM8NWzVJgYcTtNBwS6waqfmfwKefGysp64EagbCb0oxlxmvce8hfhAxkulag50A8vi639RFsIZK5Uc09o0dIP1ixLIY3Vk27e398n6RaxZydyZFHdk+NUUdkBAvouaMp68iN+mc8Gj5BY3dA8cfDY9hzLpRr5/G0f8W7EFtWD2+4x+mMrNrPuFc8dR0AbDSThATRm9htKpBcKJGaZNd9q1oagjdRWYYToNoGwt3jx0B4EaytZx9oPMfo/9T0Y3WPADB5zK0umU78KdQzRE2TZ6H037XhxyJm16UNIHoTPrPYacwwEns3AuXq1BscfdBS41g3Y9yavG0IlAl0H2AlRtp/RXuh2SMgWabh9OTqZLJUWoNu71shh+Fe16s2MVu7ayeBqVW6mrZFeYCAw5mDY9QGE4qN3JM6PZsp1cnXUreP4STr+dSIDyDVTtxIok/DbePI69lGgEXSdo0ntIQ4qtJxinYNMaNi4WPYaw+Cuuf595U3nrPm5+n7bd+eQxLn2Bs3fw+Bl89DDXvoUVZeoDrF7ImrncPROh89P7jLhKbF5KfitcPjYtpaB1vIxrkk4b++8f8aRLiQkGGA47NKziThihkdcKuRMj7hQKxE1yTx5FTnKdILGiKEXYTI/f14IWDnxOpAmKuoi9LYQgrxXmdhyafey8NmK/4vZR5CTXYa9jKJIYoBmxrer81vbqK7BMDA0DvnyNZTO45Cn6j7AdnvXerRbt+Otb9B/O23dQvQ2h7BKfTvjlE85/jOUz8RbQuitPnkV+a0Y9yHMX0Ptoxi9k0ed89AQDRvL4QrYsY+ZkLMlFTzD0PL6cQNV2HG5W/cgRF7HqZwadiGWyfD7v38Ha+VTX4c5jyTdMfZd3FjHrXd55iLs+5YDTqCnn0HOJhln5M840i9gkwShJfivunZW6lhaaTukctlfj9CYwOr0ELDxB/OBwxoWLwnDy9csMv9pWnVt3o3W3FDLzV7JmLi/fQH5rBFgWuoPydVRsJ1dDSnI1tpXy5MVxCwq67oPusl/Pb81lL6bh0+kTGwRPnIG3AH8lr/+VsrXsDHL/0QiNzev5+S2ExpZV/PsWZr5BJMiWdQB3DqFjb3ZuprwC/71oOtEwVhSHC4cLtyJqogukQil0DUtigfG7EoJiPS/uzLCz0Z0cehYFbShfz44dFJYA5BZx5w+2Wf/EmaxdjEZMgIgTbuCYK3A4WfUzj5yGU0uDPMa5rnyFUB0ON7PfZdJttgIGeHK54zvMCA4XL/yFRd/bih9wxBgOOgvdYEcpDwzHkrZjUwguGE/FVtrsQ//jUZJFX+AgkRiVZ7BtLeNOoqRPnJXE4wThINIkp5BQBVFpm4JK4oDta7iuCzXlOFzcPIDVq3DA2nls+o0b96PrgewoZdsubh5I2x6sXUgEvnydxdPw5rN2JQ545hz8lSz5hsptrJlHxWZyYf73+MCHmHAuVpR28NQoKrdSXsvdh6MbzJxEThHbVlJVjYfGrjxjNzq1lNTtREnQkBZ5xegOpMUBp3DO1ZStjW9NxbAr2byCHaX068rwa2wPjBCEalmxlHuPZMhoug7G4aJFOzx5OD32EuYU0v84bi7hywmxouPxOW3kvos9lKlJA0oRDcYfKHQHhjP9aCyFAk8edRUoWLmUTiV4gmzYiAfyc1i3HCDHizRZvwynRo4Hw4UVYeNvGA5a5hP2U12HC1p2oWwdIcj3oOn463A50Axqg7TIJ6eIXZuw9jwJNabo9ziEHnHpXbWNFy+nLoJh2Ivi9oGgtpzKreix0vUKoHwDGxfjzWPBx5gSZ+ZIiNOL0DBc7NyU0Mpi4svlw+UjWEvZWnQw48grt7BmPt5cVs8h6E+peX/gafY/ytby4lUsm4NLJG4+sUz7vO2a3xLeaguC0DYPXwsqttKxLxUb2bUdDYTAVDidePKwTHZso7aavvtTtY3fltC+GHcOS+bghh49Kd/Axl9p3Rml8BUQ8hOuo1MXXD6qd1AdwJ1Hxz6sXYKAjj0wI2xfT7vOVO+gNkj3vvir8NeSp7F9g72L5BrblZ/O82nshttVb+fOQ6iuwDAww7Ttwa3TbH30lFu481B2rKF1V1C06cbNnxKqs11hSuFwUbmFmW/hgHmz+Xm27eouzCe3mNwOHH4Ww662WVHbfSnuRNhv+1WKS8hpwa5KPBq1kq7dOPpyKreiaUQtNi/GDOPyIAQ7N/DQcYSDGAb+EEPP4KKnGg1VABhOrphIl0HUlPHUOVzzOH2HYVm8dh2VWxj7BrcMojbArV/x4xss+pIbPmDWOxx9GS4f21byy2ecdBOLpzFtAle+ijcPfxXjTmfYJRx5CQ8eS+dB9B3Gty8y5mkUfDeRj57FlzngkEkZA9b9wvSXERqBKpZNZ8cW3PHwYu0ubhtM9U6EJBpB0+xQLKiZk8Tr48mNxaaMDEFnCTDhPBbNwOckXIdXIxi3uQPV3HEIFdvRJNEIDp2IZfd//kc8czO5IMDrJGza4gW4/2g69ObiZ1CSdfPRRNxnnaSqIHAJhIYmCETxuDjzrxz/V1q0w4oy/RWmPGhzWKlw53DjFIpL2LKMV6/jhsnktcSVw4Tz6diHYy5jbF98udw5g2dG4y3grHuY+wHDrsSbx6x3qdnJcdfy4uUgOG8ckQDb1zD+DG76hJwixnbikueY/yFFJRwyimA1T49m02pcekLvzVzffHc2jAIr5ikGKQnVYEbtkGpuSwJV3DuMKyay3xE2X693HEuT5TN4eSxbtzPyIvJb4XDhKcBXwCfjWLWK0Bp0i+FjUdgzteonBp5Ah/2wTPJb85fneO2fhHfSqR1XvkbPQ+Nut1oeGZmQP2aU7asJWjigFqq2pad8U5KTw+EXMu9DXv0n+x3B0PP5234cfh4XPcFr11HY3g4nF3XA2wJNUNKXZy9gxxr++h6PnkjVDs4bx3cvc+xYlOJvh/HodI69VGlOkd+a0+9g7Xx8BfQ9ipJ+TDiPXz7DzR5fMRXbuFtX8O5zdkjUBR4HddGkUEaQUAhHZpXPjEdmMzWIhgiH0cNp1NcYcmfmdy2ojtiiINbhXZuYM50DTqXPMVz7JveNTPeyQtOImERgwBGc+yA9hgCsX8SbNzN/GgY4hB0x83jpdywz3+DVWznmXDoP4uK2XP4EZ9zBvI/QDIQAgeFCaKDIb8U79xKqZcS1PPUX9j+Ko/7Cb9/w8EK+eJpvXmLiNg48ibJ1FLbnuKsI+xE6/Y4hUMWLV7F9HQ4R52u7sTwzEEx9OCW3iPvn2JQnLXwt8ORiRjCcrJuP4cQweOUaeg2hTXcUtg9F09i+mhU/ohSF+RSXcNa9CeT7n8yqWQA9DrY/ZDgpW8u8L8kp5spX0DUsk0POod+x+KvIK8adZ4fAdAdv3sjWFejORIjN6cYK4jBwmrbGWN//eg5naFTt4rbBXPw0Vz/HihlUbmXxcoq+ZfhVOL0EqqmqIgAIQnVUlwEEKti6ilAd21ahIOQnVEuL9mxZxq8b2LoCl08IjdnvUdiBg86kfD3v3IPSuPApfC348FlytD2TMEpimeg6eYatFShpU51SWKadpKMLtCS1J/anLvsz8jzccbdy6VyWLbXt7/o+SBPLRGjoAj05yFCPXEuPvEPvJOQuVs6mrgxpYZm4cxCCV6/l3p/ofxwnXMWU58hPFa0Sai1aFXHWHYwYi2bgr+Cjx/h0PIEIXs22eAGHRmUZDwzj4qe58kmqy6jazroK1s6jY280QThAtYXPj64TrsOKoDsxLUJ1RINELCJhwnUYTty5bFhE6XaqtpPXkrCfTx/liEswIyz6gnGjuPp5bvyAe49iy5pmRp+NjF4UTbd12xbtGr3kpGIz/7qCoedx4RMEa1Dw4uV89B4FUA0nncXlL6LAl8/U+3jlTgo7cMxlNuPJa8kBJ6e4sNfO54XLsKJ8+yq+Qs64E28egK8QX6HdzOHGivLBvXw8ke69cHkTXY1ZirGNZTjtSBHgyomnQgiiklbtGXouO9ZwwMl8/jQnF3Df23Q7iOU/UL2DgraMfYlF37B4GifdRO+jCNZSU0ObHnjz0Z2064knlz7DWPgZox/ioQkMOJ6nRnHYBZStZe5krnuPii0cdTEOL0LQaQDmHh4+VeDyoRu2+i7jSyh0FBgOdIPclnaeRDIr9BWiG+LQ0Rw6OvHwg3uYvxRfvo0wZmrnFqMb6Ibtokh2h+oGucV24llyPpGvAN1g0IkMOjHR/sMHmPoA7tx4txWly3nvDsZMYMyzbFrKrz/g1pASBErgyWPkRYy639ZB5kzh7dtZuwIvKVqrEEQkHbqy35GsX0iPQ3llLMOu4NbxHH4hP76JVHTszQV/o/RHNi7m3HGE/ezcQAS8+bax0HV/CjuQ14pFX3LhEww8gfzW/PYdw8fy8cOUDODAU3H5OPJ81i2k/3HktLAd8c3waxqNVgykxXt34M1DyrhDMzlJ2cGuTSz8jHU7GHo2CFw+NIMWbck3yHdBmBZt8ebb3MtwI+CFK/jpbQ4+g3b70nofWz6Ur6d8HYu+ZO5UgmHcAglTxjNvKoecRfeDySmiqCO1u6jayqbfmD2Zlb/gFtSU8/bN6A6EoK4CM2JH5Zywdj6T77b9PKt+xhVL9YulGFUQrEEzGH86c74hdDwHncmM1/j8CTx5TL4bXwucOq//lRP+Tl4xDx9PXYCdG3n7FoI1OL1MvR9l8c3zRAJ0GcQLl/DDe2ga/kp+nUbr29m8jEAFPQ/m00eZNoEc0oSxm5AtTiidw4zXWTMXPUk9UAoDKrYy43UC1USCSSqPQocFH7JrA5YJAgHSQmis/AkvLPseh5sVP+KAaJhvX8TXgorNGHH1Tyl0qClnxuuEA4T9CeSx7y75GjOShFwiBMt/RFpMfxlNp3YngE/j639R0JbiEkr6sfiHRJatlPQ/mp5DmP8R0RC/fcv0txGQp2PJhhJYh5oy8lqiOZhwHot+ZvzpHHER307k/fvpcSAzJtFrMOWrGH8qox8BxUtXosOaeWras8IBZoQZkyhoyzPnM+peWnXhoRGsWcSP/2bnRt67nUAVq2ex3xG0259nzmP1AtyimcpzhmzlQJPUFguKhTTOvZWz77WvU3r1GqY+R4GL6jCnXMUlzxIJ43Tx8SO8cgs5DvxRJDjB57MzfwO1hEGBB3TN7rGmE7aIYidfenKIBAjH4xJ28iWEkhLpUpIvoT6a6ohfxlnPDfygwAkeQVARSXo9CDKePuiPGw8uMCEEPohgp+t5IIjdH58gqNDACf44/wk3lb23u+RLiIABntQlEGBCMN5h0SA/ABoTZuzO0SBE4whlfGU9yYFCEGBBLG3D1wh5bLCNkTuhLhYKSxqpHyR2rqdKNasCcSeoDl5hnztMbxGAP57i6RIElT2lPjAhDBLcoMf77AEnhLHDQQEwsbNs65fSLfAr3CAhBG4IgxXvarMhg0qWozcZRFAIDRm1bS8h0mel2s9jznWFV7f5aNCflAyr266h+rmTFk4NlwCFlATrEODScIuEk0cT5OiJziTyAsEhEu5UlZpGHmNpdtqbxKPh1VCgLIBc3V4rpcjTE68bglwdaeLS8Gh2BnuOZkchpIVXtzuWa4BEkUC7p7FLRdJXrIZ/MgT5uu2obfAnX4YM/MQwFdJCQJ5hT3Jy3xTomZF7M6f35xvx0wFxbLkGgoTdVQ8OjRZaypGEJiZHg3zDFk1K4tXxCTvl3ilwJx0JKUjaP04Nl4Y07dlIbhD7Yo6BtNAFLg0pcYrEIv5RgtktCm3PY3L1OHWRWIy0H6q/JwBhp2QnntQTiZn5uI65+z7YM56ckWBm+HccoZJYMh2eJHva9iP9gczl5K80Hppl7vF6NRimZe5N5I1fybgucs+mJRlPcgeUSsGT3IF6/pjcPrlBDGc9ht+VifHHLsFo8E2h2afEmg5x7wHfVdlzzVn4XwV/7JoloSd2f+wkg7IIyzh7UNmTyVnIEkwShP2I+FGQY66g30CUk979GXZVwoyJ5aFkIQv/J+D33hojNKKS1iU8/As5RXbCfyTAjvW06oTLZz8JVnNTf3ZswJG9vT8L/80SRkmcGls3Mv4MtpeiOwCcXjruZx9T0R1sL2X86WzdkC0Ok4X/eglTL2dCkoJ8Bo2k60F07INuYJlsWsLaBSz4lKoq3FlqyUKWYBIiSsOUhFLFVYxA3GBo2QKXWfi/BMYfRSAlurBvAGmstmWpJQtZgmlEGMoOlmchC1mjPwtZyEKWYLKQhSzBZCELfzL8P/WU00ejkTLQAAAAAElFTkSuQmCC" alt="BUSCH GROUP"><h1>台灣普熙技術服務部<small>系統入口</small></h1><span class="ver" id="ver"></span>
+  <div class="bar">
+    <span class="rstat" id="rstat">尚未連結共用資料夾</span>
+    <button class="btn" id="bRefresh" title="重新讀取各系統資料">↻ 重新整理</button>
+    <button class="btn pri" id="bRoot">連結共用根目錄</button>
+  </div>
+</header>
+<nav id="nav"></nav>
+<main id="main"></main>
+
+<script>
+const VER='v1.2 (2026-10-16)';
+const SETFILE='共用設定.json';
+const SYS=[
+ {k:'report',  name:'報工',         code:'10', color:'var(--c-report)',  match:/報工|service.?report/i, desc:'廠內／廠外工時回報，月報依機種、客戶、工程師統計'},
+ {k:'teardown',name:'三地共用',     code:'20', color:'var(--c-teardown)',match:/三地|拆解|teardown/i,   desc:'拆解照片與備註，拆解區、組裝區、辦公室共用'},
+ {k:'fs',      name:'Field Service',code:'30', color:'var(--c-fs)',      match:/field|^\d*_?fs\b|排程/i, desc:'廠外服務排程與進度，工程師以 Forms 回報完工'},
+ {k:'cq',      name:'客戶問題點',   code:'40', color:'var(--c-cq)',      match:/客戶問題|客訴|issue/i,   desc:'客訴受理、調查、對策與結案，月報中英切換'}];
+const AUX=[{k:'portal',name:'入口網站',code:'00',match:/入口|portal/i},{k:'settings',name:'共用設定',code:'01',match:/共用設定|setting/i}];
+const DEF_FAMILIES=["R5","Mink","COBRA","Seco","Dolphin","Panda","Puma","Samos","Fossa","Huckepack","其他品牌"];
+const DEF_SET=()=>({app:'shared-settings',ver:1,families:[...DEF_FAMILIES],
+  formats:{wo:{example:'',pattern:'',note:''},fsn:{example:'',pattern:'',note:''}},
+  folders:{},adminHash:'',updatedAt:'',updatedBy:''});
+
+/* ---------- 小工具 ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>ymd(new Date());
+const ym=()=>today().slice(0,7);
+const toTs=x=>typeof x==='number'?x:(Date.parse(x||'')||0);
+const fDT=t=>{if(!t)return '—';const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes())};
+function toast(m,err){document.querySelectorAll('.toast').forEach(x=>x.remove());const t=document.createElement('div');t.className='toast'+(err?' err':'');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),err?5000:2600)}
+const ls={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const idb={db:null,
+  async open(){if(this.db)return this.db;this.db=await new Promise((res,rej)=>{const r=indexedDB.open('svc_portal',1);r.onupgradeneeded=()=>r.result.createObjectStore('h');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});return this.db},
+  async get(k){try{const db=await this.open();return await new Promise(r=>{const q=db.transaction('h').objectStore('h').get(k);q.onsuccess=()=>r(q.result||null);q.onerror=()=>r(null)})}catch(e){return null}},
+  async set(k,v){try{const db=await this.open();return await new Promise(r=>{const t=db.transaction('h','readwrite');t.objectStore('h').put(v,k);t.oncomplete=()=>r(true);t.onerror=()=>r(false)})}catch(e){return false}}};
+
+/* 報工共用檔可能是壓縮格式（SR0/SR1） */
+function b64uDec(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+async function parseAny(t){
+  t=String(t||'').replace(/^\uFEFF/,'').trim();if(!t)return null;
+  if(t.startsWith('SR0:'))return JSON.parse(new TextDecoder().decode(b64uDec(t.slice(4))));
+  if(t.startsWith('SR1:')){const s=new Blob([b64uDec(t.slice(4))]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return JSON.parse(await new Response(s).text())}
+  return JSON.parse(t);
+}
+
+/* ---------- 狀態 ---------- */
+const S={tab:'home',root:null,perm:'none',dirs:{},data:{},info:{},errs:{},set:null,setLoadedAt:'',setExists:false,unlocked:false,loading:false,check:null};
+
+/* ---------- 根目錄 ---------- */
+const FSA='showDirectoryPicker' in window;
+async function linkRoot(){
+  if(!FSA){toast('請用電腦版 Chrome 或 Edge 開啟',true);return}
+  try{const h=await showDirectoryPicker({id:'svc-portal-root',mode:'read'});S.root=h;S.perm='granted';await idb.set('root',h);await loadAll()}
+  catch(e){if(e.name!=='AbortError')toast('連結失敗：'+e.message,true)}
+}
+async function restoreRoot(){
+  const h=await idb.get('root');if(!h)return;S.root=h;
+  try{S.perm=await h.queryPermission({mode:'read'})}catch(e){S.perm='prompt'}
+  if(S.perm==='granted')await loadAll();else render();
+}
+async function grantRoot(){
+  if(!S.root)return linkRoot();
+  try{S.perm=await S.root.requestPermission({mode:'read'})}catch(e){S.perm='denied'}
+  if(S.perm==='granted')await loadAll();else{toast('未取得讀取權限',true);render()}
+}
+
+/* 對應子資料夾：共用設定指定 > 名稱比對 */
+async function mapDirs(){
+  const dirs=[];for await(const [n,h] of S.root.entries())if(h.kind==='directory'&&!n.startsWith('.')&&!n.startsWith('#'))dirs.push([n,h]);
+  const fixed=(S.set&&S.set.folders)||{};const out={};const used=new Set();
+  for(const s of [...AUX,...SYS]){const want=fixed[s.k];const hit=want?dirs.find(([n])=>n===want):null;if(hit){out[s.k]=hit;used.add(hit[0])}}
+  for(const s of [...AUX,...SYS]){if(out[s.k])continue;const hit=dirs.find(([n])=>!used.has(n)&&s.match.test(n));if(hit){out[s.k]=hit;used.add(hit[0])}}
+  S.allDirs=dirs.map(d=>d[0]).sort();
+  S.dirs={};for(const k in out)S.dirs[k]={name:out[k][0],h:out[k][1]};
+  const cache={};for(const k in S.dirs)cache[k]=S.dirs[k].name;ls.set('svc_portal_dirs',cache);
+}
+async function findFile(dir,test,depth,prefer){
+  const files=[],subs=[];
+  for await(const [n,h] of dir.entries()){if(h.kind==='file'&&/\.json$/i.test(n)&&!/^push_/i.test(n))files.push([n,h]);else if(h.kind==='directory'&&depth>0&&!/^(photos?|files|回報|\.|#)/i.test(n))subs.push(h)}
+  files.sort((a,b)=>(b[0]===prefer)-(a[0]===prefer));
+  for(const [n,h] of files){try{const f=await h.getFile();if(f.size>60e6)continue;const d=await parseAny(await f.text());if(test(d,n))return {name:n,data:d,mod:f.lastModified}}catch(e){}}
+  for(const s of subs){const r=await findFile(s,test,depth-1,prefer);if(r){r.name=s.name+'/'+r.name;return r}}
+  return null;
+}
+async function hasIndex(dir){try{await dir.getFileHandle('index.html');return true}catch(e){return false}}
+
+/* ---------- 讀取 ---------- */
+async function loadSettings(){
+  S.set=null;S.setExists=false;
+  const d=S.dirs.settings;if(!d){S.set=DEF_SET();return}
+  try{const fh=await d.h.getFileHandle(SETFILE);const t=await (await fh.getFile()).text();const j=await parseAny(t);
+    if(j&&j.app==='shared-settings'){S.set=normSet(j);S.setExists=true;S.setLoadedAt=S.set.updatedAt;return}}catch(e){}
+  S.set=DEF_SET();
+}
+function normSet(j){const d=DEF_SET();j=Object.assign(d,j);j.formats=Object.assign(DEF_SET().formats,j.formats||{});
+  for(const k of ['wo','fsn'])j.formats[k]=Object.assign({example:'',pattern:'',note:''},j.formats[k]||{});
+  if(!Array.isArray(j.families))j.families=[...DEF_FAMILIES];j.folders=j.folders||{};return j}
+
+async function loadAll(){
+  if(S.loading||!S.root)return;S.loading=true;setStat('讀取中…');
+  S.data={};S.info={};S.errs={};
+  try{
+    await mapDirs();await loadSettings();
+    if(S.set&&Object.keys(S.set.folders||{}).length)await mapDirs(); // 共用設定有指定資料夾時重新對應
+    const jobs={
+      report:async d=>findFile(d,x=>x&&x.app==='service-report'&&Array.isArray(x.records),2,'報工_shared.json'),
+      cq:async d=>findFile(d,x=>x&&x.app==='CQ'&&Array.isArray(x.cases),1,'客戶問題點資料.json'),
+      fs:async d=>findFile(d,(x,n)=>n==='fs_schedule.json'||(x&&x.cases&&x.settings&&typeof x.cases==='object'&&!Array.isArray(x.cases)),2,'fs_schedule.json'),
+      teardown:async d=>{let n=0;for await(const [nm,h] of d.entries())if(h.kind==='directory'&&!/^[.#]/.test(nm))n++;return {name:'(資料夾)',data:{folders:n},mod:0}}
+    };
+    await Promise.all(SYS.map(async s=>{const d=S.dirs[s.k];if(!d)return;
+      try{S.info[s.k]={index:await hasIndex(d.h)};const r=await jobs[s.k](d.h);if(r)S.data[s.k]=r;else S.errs[s.k]='找不到資料檔'}
+      catch(e){S.errs[s.k]=e.name==='NotAllowedError'?'沒有讀取權限':('讀取失敗：'+e.message)}}));
+    S.loadedAt=Date.now();setStat();
+  }catch(e){setStat('讀取失敗',true);toast('讀取失敗：'+e.message,true)}
+  S.loading=false;S.check=null;render();
+}
+function setStat(t,warn){const el=$('#rstat');
+  if(t){el.textContent=t;el.className='rstat'+(warn?' warn':'');return}
+  if(!S.root){el.textContent='尚未連結共用資料夾';el.className='rstat warn';return}
+  if(S.perm!=='granted'){el.textContent='「'+S.root.name+'」需要重新授權';el.className='rstat warn';return}
+  el.textContent='共用根目錄：'+S.root.name+(S.loadedAt?'　讀取於 '+fDT(S.loadedAt):'');el.className='rstat'}
+
+/* ---------- 摘要 ---------- */
+function summarize(k){
+  const r=S.data[k];if(!r)return null;const d=r.data,m=ym(),t=today();
+  if(k==='report'){const live=d.records.filter(x=>!x.deleted);const mon=live.filter(x=>String(x.date||'').startsWith(m));
+    const wos=new Set(mon.map(x=>String(x.wo||'').trim()).filter(Boolean));
+    const last=Math.max(0,...live.map(x=>toTs(x.updatedAt)||toTs(x.createdAt)));
+    return {stats:[['本月報工',mon.length],['今日報工',live.filter(x=>x.date===t).length],['本月工單數',wos.size]],last:last||r.mod}}
+  if(k==='cq'){const cs=d.cases||[];const open=cs.filter(c=>!['closed','cancel'].includes(c.status));
+    return {stats:[['未結案',open.length],['A 級未結',open.filter(c=>c.severity==='A').length,open.some(c=>c.severity==='A')],['本月新增',cs.filter(c=>String(c.receivedAt||'').startsWith(m)).length]],last:toTs(d.updatedAt)||r.mod}}
+  if(k==='fs'){const cs=Object.values(d.cases||{});const cnt=st=>cs.filter(c=>(c.stage||'待安排')===st).length;
+    const mon=new Date();mon.setDate(mon.getDate()-((mon.getDay()+6)%7));const ws=ymd(mon);mon.setDate(mon.getDate()+6);const we=ymd(mon);
+    const wk=cs.filter(c=>c.date&&c.date>=ws&&c.date<=we&&!['取消'].includes(c.stage)).length;
+    const last=Math.max(0,...cs.map(c=>toTs(c.updatedAt)));
+    return {stats:[['已排程',cnt('已排程')],['本週排程',wk],['完成待報告',cnt('已完成待報告'),cnt('已完成待報告')>0]],last:last||r.mod,note:'待安排件數在業務 Excel，入口不讀取'}}
+  if(k==='teardown')return {stats:[['子資料夾',d.folders]],last:0,note:'系統建置中'};
+}
+
+/* ---------- 畫面 ---------- */
+const TABS=[['home','首頁'],['settings','⚙ 共用設定'],['check','部署檢查']];
+function render(){
+  $('#ver').textContent=VER;setStat(S.loading?'讀取中…':'');
+  $('#bRoot').textContent=S.root?(S.perm==='granted'?'變更根目錄':'授權讀取'):'連結共用根目錄';
+  $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('');
+  $('#main').innerHTML=S.tab==='home'?vHome():S.tab==='settings'?vSettings():vCheck();
+  if(S.tab==='check'&&!S.check&&S.root&&S.perm==='granted')runCheck();
+}
+function linkFor(k){const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
+function banner(){
+  if(!FSA)return `<div class="banner">這個瀏覽器不支援讀取共用資料夾，請用電腦版 Chrome 或 Edge 開啟。各系統入口仍可使用。</div>`;
+  if(!S.root)return `<div class="banner info">第一次使用：按右上角「連結共用根目錄」，選 NAS 上放各系統資料夾的那一層（不是入口網站資料夾本身）。<button class="btn sm pri" data-act="root">連結</button></div>`;
+  if(S.perm!=='granted')return `<div class="banner">瀏覽器需要重新授權讀取「${esc(S.root.name)}」。<button class="btn sm pri" data-act="grant">授權讀取</button></div>`;
+  return '';
+}
+function vHome(){
+  return banner()+`<div class="tiles">${SYS.map(s=>{
+    const href=linkFor(s.k),sm=summarize(s.k),err=S.errs[s.k],info=S.info[s.k]||{},found=!!S.dirs[s.k];
+    let body='';
+    if(sm)body=`<div class="stats">${sm.stats.map(([l,v,a])=>`<div class="st ${a?'alert':''}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}</div>${sm.note?`<div class="hint">${esc(sm.note)}</div>`:''}`;
+    else if(S.root&&S.perm==='granted')body=`<div class="msg ${found?'err':''}">${found?esc(err||'尚無資料'):'在根目錄找不到這個系統的資料夾（可到共用設定指定）'}</div>`;
+    else body=`<div class="msg">連結共用根目錄後顯示即時狀態</div>`;
+    const lastT=sm&&sm.last?'更新 '+fDT(sm.last):(found?'資料夾：'+esc(S.dirs[s.k].name):'');
+    const idxWarn=found&&info.index===false?' <span class="wrnc">（資料夾內沒有 index.html）</span>':'';
+    return `<div class="tile" style="--c:${s.color}"><div class="tt"><b>${esc(s.name)}</b><span>${s.code}</span></div>
+      <div class="desc">${esc(s.desc)}</div>${body}
+      <div class="foot"><span class="hint">${lastT}${idxWarn}</span>${href?`<a class="btn pri" href="${href}" target="_blank" rel="noopener">開啟</a>`:`<span class="btn dis">開啟</span>`}</div></div>`}).join('')}</div>
+  <p class="hint" style="margin-top:14px">入口網站只讀取資料，不會修改各系統的資料。要新增或修改紀錄，請按「開啟」進入該系統。</p>`;
+}
+
+/* ---------- 共用設定 ---------- */
+async function sha(s){
+  try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('svc-portal:'+s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+  catch(e){let h=5381;for(const c of 'svc-portal:'+s)h=((h<<5)+h+c.charCodeAt(0))|0;return 'djb'+(h>>>0).toString(16)}
+}
+function exampleToPattern(ex){
+  ex=String(ex||'').trim();if(!ex)return '';
+  return '^'+ex.replace(/\d+|[^\d]/g,m=>/^\d+$/.test(m)?'\\d{'+m.length+'}':m.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))+'$';
+}
+function testPat(p,v){if(!p)return null;try{return new RegExp(p,'i').test(String(v).trim())}catch(e){return undefined}}
+function sampleValues(kind){
+  const out=[];
+  if(kind==='wo'){const r=S.data.report;if(r)r.data.records.filter(x=>!x.deleted&&x.wo).forEach(x=>out.push(['報工',String(x.wo).trim()]));
+    const c=S.data.cq;if(c)(c.data.cases||[]).filter(x=>x.woNo).forEach(x=>out.push(['客訴',String(x.woNo).trim()]))}
+  else{const f=S.data.fs;if(f)Object.keys(f.data.cases||{}).forEach(k=>out.push(['Field Service',k]))}
+  const seen=new Set();return out.filter(([s,v])=>{const key=s+'|'+v;if(seen.has(key))return false;seen.add(key);return true});
+}
+function fmtBlock(kind,label){
+  const f=S.set.formats[kind],sv=sampleValues(kind);const p=f.pattern;
+  let stat='';
+  if(sv.length){if(!p)stat=`現有資料 ${sv.length} 筆，尚未設定格式所以不檢查。`;
+    else{const bad=sv.filter(([,v])=>testPat(p,v)===false);const okN=sv.length-bad.length;
+      stat=`現有資料 ${sv.length} 筆：<span class="okc">${okN} 筆符合</span>${bad.length?`、<span class="badc">${bad.length} 筆不符</span>`:''}`+
+      (bad.length?`<div class="chips" style="margin-top:6px">${bad.slice(0,30).map(([s,v])=>`<span class="chip" title="${esc(s)}">${esc(v)}</span>`).join('')}${bad.length>30?`<span class="hint">…另 ${bad.length-30} 筆</span>`:''}</div>`:'')}}
+  else stat='目前讀不到現有資料可供比對。';
+  const valid=p?testPat(p,'x')!==undefined:true;
+  return `<div class="card"><h3>${label}</h3>
+    <label class="fld"><span>範例（填一個標準寫法）</span><input type="text" data-f="${kind}.example" value="${esc(f.example)}" placeholder="${kind==='wo'?'例如 WO2026-00123':'例如 FS2026A12-1'}"></label>
+    <div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="genpat" data-k="${kind}">依範例產生檢查規則</button><span class="hint">數字會變成「同樣位數的數字」，其他字照抄。</span></div>
+    <label class="fld"><span>檢查規則（正規表示式，留白＝不檢查）${valid?'':' <span class="badc">規則寫法有誤</span>'}</span><input type="text" data-f="${kind}.pattern" value="${esc(p)}" style="font-family:Consolas,monospace"></label>
+    <label class="fld"><span>說明（各系統輸入錯誤時顯示）</span><input type="text" data-f="${kind}.note" value="${esc(f.note)}" placeholder="${kind==='wo'?'例如：WO 開頭＋4 碼年份＋「-」＋5 碼流水號':'例如：FS＋年份＋業務代碼＋序號－分段'}"></label>
+    <label class="fld"><span>試試看</span><input type="text" data-try="${kind}" placeholder="輸入一個號碼測試"><span class="hint" id="try-${kind}"></span></label>
+    <div class="msg">${stat}</div></div>`;
+}
+function vSettings(){
+  if(!S.root||S.perm!=='granted')return banner()+`<div class="card">共用設定存放在 NAS 的「共用設定」資料夾，請先連結共用根目錄。</div>`;
+  if(!S.dirs.settings)return `<div class="banner">在根目錄找不到「共用設定」資料夾。目前根目錄下的資料夾：${(S.allDirs||[]).map(esc).join('、')||'（無）'}</div>`;
+  if(!S.unlocked){const first=!S.set.adminHash;
+    return `<div class="card lock"><h3>${first?'設定管理密碼':'管理者解鎖'}</h3>
+      <p class="hint">${first?'第一次使用，請設定管理密碼（只有管理者能修改共用設定）。':'共用設定會影響所有系統，需要管理密碼。'}</p>
+      <input type="password" id="pw1" placeholder="管理密碼" style="margin-bottom:8px">${first?'<input type="password" id="pw2" placeholder="再輸入一次" style="margin-bottom:8px">':''}
+      <button class="btn pri" data-act="${first?'setpw':'unlock'}">${first?'設定並進入':'解鎖'}</button></div>`}
+  const st=S.set,fam=st.families;
+  const others=familySources();
+  const folderRows=[...AUX,...SYS].map(s=>`<tr><td>${s.code} ${esc(s.name)}</td><td><select data-folder="${s.k}"><option value="">（自動比對）</option>${(S.allDirs||[]).map(n=>`<option ${st.folders[s.k]===n?'selected':''}>${esc(n)}</option>`).join('')}</select></td><td class="hint">${S.dirs[s.k]?'目前：'+esc(S.dirs[s.k].name):'<span class="wrnc">未找到</span>'}</td></tr>`).join('');
+  return `${S.setExists?'':'<div class="banner">共用設定檔還沒建立，下面是預設值；按「儲存」後會在共用設定資料夾建立「'+SETFILE+'」。</div>'}
+  <div class="row" style="margin-bottom:14px"><button class="btn ok" data-act="save">儲存共用設定</button><button class="btn" data-act="reload">放棄修改</button><button class="btn" data-act="lock">上鎖</button>
+   <span class="hint">${st.updatedAt?'上次儲存：'+fDT(st.updatedAt)+(st.updatedBy?'（'+esc(st.updatedBy)+'）':''):''}</span><span class="hint" id="dirty"></span></div>
+  <div class="grid2">
+   <div class="card"><h3>機種家族（${fam.length}）</h3>
+    <label class="fld"><span>一行一個，順序就是各系統點選時的順序</span><textarea id="fam" rows="12">${esc(fam.join('\n'))}</textarea></label>
+    ${others.map(o=>{const add=o.list.filter(x=>!fam.includes(x));return `<div class="row" style="margin-bottom:6px"><span class="hint">${esc(o.src)} 有 ${o.list.length} 個${add.length?'，其中 '+add.length+' 個不在清單：':'，都已在清單中'}</span>${add.length?`<span class="chips">${add.map(x=>`<span class="chip new">${esc(x)}</span>`).join('')}</span><button class="btn sm" data-act="famadd" data-src="${esc(o.src)}">加入</button>`:''}</div>`}).join('')}
+    <p class="hint">客戶問題點的「從報工 JSON 匯入機種」可以直接選這個共用設定檔匯入。其他系統改成自動讀取共用設定，會在下一步調整。</p></div>
+   <div>${fmtBlock('wo','WO 工單號格式')}${fmtBlock('fsn','FSN 格式')}</div>
+  </div>
+  <div class="card"><h3>資料夾對應</h3><p class="hint">IT 開的資料夾名稱和預設比對不同時，在這裡指定。指定後所有電腦都會照這個對應。</p>
+   <table class="tbl"><thead><tr><th>系統</th><th>NAS 資料夾</th><th></th></tr></thead><tbody>${folderRows}</tbody></table></div>
+  <div class="card"><h3>管理密碼</h3><div class="row"><input type="password" id="npw1" placeholder="新密碼" style="max-width:200px"><input type="password" id="npw2" placeholder="再輸入一次" style="max-width:200px"><button class="btn sm" data-act="chpw">變更（儲存後生效）</button></div>
+   <p class="hint">密碼只能防止誤改，真正的保護是 NAS 帳號權限：共用設定資料夾只有管理者帳號能寫入。</p></div>`;
+}
+function familySources(){
+  const o=[];const r=S.data.report;if(r&&r.data.master&&Array.isArray(r.data.master.models))o.push({src:'報工',list:r.data.master.models.map(String)});
+  const c=S.data.cq;if(c&&c.data.master&&Array.isArray(c.data.master.families))o.push({src:'客訴',list:c.data.master.families.map(String)});
+  return o;
+}
+function readForm(){
+  const st=S.set;const fa=$('#fam');if(fa)st.families=[...new Set(fa.value.split('\n').map(x=>x.trim()).filter(Boolean))];
+  document.querySelectorAll('[data-f]').forEach(el=>{const [k,f]=el.dataset.f.split('.');st.formats[k][f]=el.value.trim()});
+  document.querySelectorAll('[data-folder]').forEach(el=>{if(el.value)st.folders[el.dataset.folder]=el.value;else delete st.folders[el.dataset.folder]});
+}
+async function saveSet(){
+  readForm();const d=S.dirs.settings;if(!d){toast('找不到共用設定資料夾',true);return}
+  for(const k of ['wo','fsn'])if(S.set.formats[k].pattern&&testPat(S.set.formats[k].pattern,'x')===undefined){toast((k==='wo'?'WO':'FSN')+' 檢查規則寫法有誤',true);return}
+  try{
+    let p=await d.h.queryPermission({mode:'readwrite'});if(p!=='granted')p=await d.h.requestPermission({mode:'readwrite'});
+    if(p!=='granted'){toast('沒有寫入權限（這台電腦的帳號可能是唯讀）',true);return}
+    let cur=null;try{cur=await parseAny(await (await (await d.h.getFileHandle(SETFILE)).getFile()).text())}catch(e){}
+    if(cur&&cur.updatedAt&&toTs(cur.updatedAt)>toTs(S.setLoadedAt)&&!confirm(`共用設定在 ${fDT(cur.updatedAt)} 被其他電腦改過。\n仍要用目前畫面上的內容覆蓋嗎？`))return;
+    const me=(ls.get('svc_portal_me')||prompt('儲存者名稱（記錄用）','Coos')||'').trim();if(me)ls.set('svc_portal_me',me);
+    const out={...S.set,app:'shared-settings',ver:1,updatedAt:new Date().toISOString(),updatedBy:me};
+    const fh=await d.h.getFileHandle(SETFILE,{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(out,null,1));await w.close();
+    S.set=out;S.setExists=true;S.setLoadedAt=out.updatedAt;S.dirty=false;toast('共用設定已儲存');await loadAll();
+  }catch(e){toast('儲存失敗：'+e.message,true)}
+}
+
+/* ---------- 部署檢查 ---------- */
+async function scanExternal(dir){
+  try{const t=await (await (await dir.getFileHandle('index.html')).getFile()).text();
+    const ext=[...t.matchAll(/<(?:script|link)[^>]+(?:src|href)\s*=\s*["'](https?:\/\/[^"']+)["']/gi)].map(m=>m[1]);
+    const fetches=[...t.matchAll(/fetch\(\s*["'](https?:\/\/[^"']+)/gi)].map(m=>m[1]);
+    return {ok:true,ext:[...new Set([...ext,...fetches])]}}catch(e){return {ok:false,ext:[]}}
+}
+async function runCheck(){
+  S.check={rows:null};const rows=[];
+  rows.push(['瀏覽器支援資料夾存取',FSA?'ok':'bad',FSA?'可以':'請改用電腦版 Chrome 或 Edge']);
+  rows.push(['共用根目錄',S.root?'ok':'bad',S.root?S.root.name:'未連結']);
+  rows.push(['共用設定檔',S.setExists?'ok':'warn',S.setExists?SETFILE:'尚未建立（到「共用設定」儲存一次）']);
+  for(const s of [...AUX,...SYS]){const d=S.dirs[s.k];
+    if(!d){rows.push([s.code+' '+s.name,'bad','找不到資料夾']);continue}
+    if(s.k==='settings'){rows.push([s.code+' '+s.name,'ok',d.name]);continue}
+    const sc=await scanExternal(d.h);
+    let lv='ok',msg=d.name;
+    if(!sc.ok){lv=s.k==='portal'?'warn':'bad';msg+='：沒有 index.html'}
+    else if(sc.ext.length){lv='warn';msg+='：網頁會連外部網址，報工電腦和拆解／組裝電腦斷網時會失效 → '+sc.ext.map(u=>'<code>'+esc(u.replace(/^https?:\/\//,'').slice(0,60))+'</code>').join(' ')}
+    if(SYS.some(x=>x.k===s.k)&&sc.ok){const df=S.data[s.k];msg+=df?'；資料：'+esc(df.name):(s.k==='teardown'?'':'；<span class="badc">找不到資料檔</span>')}
+    rows.push([s.code+' '+s.name,lv,msg]);
+  }
+  S.check.rows=rows;if(S.tab==='check')render();
+}
+function vCheck(){
+  if(!S.root||S.perm!=='granted')return banner()+`<div class="card">連結共用根目錄後才能檢查。</div>`;
+  if(!S.check||!S.check.rows)return `<div class="card">檢查中…</div>`;
+  const ic={ok:'<span class="okc">✔</span>',warn:'<span class="wrnc">!</span>',bad:'<span class="badc">✖</span>'};
+  return `<div class="card"><h3>部署檢查</h3><table class="tbl"><thead><tr><th style="width:28px"></th><th style="width:180px">項目</th><th>結果</th></tr></thead><tbody>
+   ${S.check.rows.map(([a,l,m])=>`<tr><td>${ic[l]}</td><td>${esc(a)}</td><td>${l==='ok'||m.includes('<')?m:esc(m)}</td></tr>`).join('')}</tbody></table>
+   <div class="row" style="margin-top:10px"><button class="btn sm" data-act="recheck">重新檢查</button><span class="hint">每台電腦第一次使用時跑一次，確認資料夾、網頁和資料檔都找得到。</span></div></div>`;
+}
+
+/* ---------- 事件 ---------- */
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-tab],[data-act],#bRoot,#bRefresh');if(!t)return;
+  if(t.id==='bRoot')return S.root&&S.perm!=='granted'?grantRoot():linkRoot();
+  if(t.id==='bRefresh'){if(S.root&&S.perm==='granted')await loadAll();else if(S.root)await grantRoot();return}
+  if(t.dataset.tab){if(S.tab==='settings'&&S.unlocked)readForm();S.tab=t.dataset.tab;render();return}
+  const a=t.dataset.act;
+  if(a==='root')return linkRoot();
+  if(a==='grant')return grantRoot();
+  if(a==='recheck'){S.check=null;render();return}
+  if(a==='setpw'){const p1=$('#pw1').value,p2=$('#pw2').value;if(p1.length<4){toast('密碼至少 4 碼',true);return}if(p1!==p2){toast('兩次輸入不同',true);return}
+    S.set.adminHash=await sha(p1);S.unlocked=true;S.dirty=true;render();toast('記得按「儲存共用設定」才會生效');return}
+  if(a==='unlock'){if(await sha($('#pw1').value)===S.set.adminHash){S.unlocked=true;render()}else toast('密碼錯誤',true);return}
+  if(a==='lock'){readForm();S.unlocked=false;render();return}
+  if(a==='reload'){if(S.dirty&&!confirm('放棄尚未儲存的修改？'))return;S.dirty=false;await loadAll();return}
+  if(a==='save')return saveSet();
+  if(a==='genpat'){readForm();const k=t.dataset.k;const f=S.set.formats[k];if(!f.example){toast('先填範例',true);return}f.pattern=exampleToPattern(f.example);S.dirty=true;render();return}
+  if(a==='famadd'){readForm();const o=familySources().find(x=>x.src===t.dataset.src);if(o){o.list.forEach(x=>{if(!S.set.families.includes(x))S.set.families.push(x)});S.dirty=true;render()}return}
+  if(a==='chpw'){const p1=$('#npw1').value,p2=$('#npw2').value;if(p1.length<4){toast('密碼至少 4 碼',true);return}if(p1!==p2){toast('兩次輸入不同',true);return}
+    readForm();S.set.adminHash=await sha(p1);S.dirty=true;render();toast('按「儲存共用設定」後生效');return}
+});
+document.addEventListener('input',e=>{
+  if(e.target.dataset.try){const k=e.target.dataset.try;readForm();const r=testPat(S.set.formats[k].pattern,e.target.value);const el=$('#try-'+k);
+    el.innerHTML=!e.target.value?'':r===null?'未設定規則':r===undefined?'<span class="badc">規則寫法有誤</span>':r?'<span class="okc">✔ 符合</span>':'<span class="badc">✖ 不符合</span>';return}
+  if(e.target.closest('#main')&&S.tab==='settings'){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}
+});
+document.addEventListener('change',e=>{if(e.target.dataset.folder){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw1'||e.target.id==='pw2')){const b=document.querySelector('[data-act=unlock],[data-act=setpw]');if(b)b.click()}});
+window.addEventListener('beforeunload',e=>{if(S.dirty&&S.unlocked){e.preventDefault();e.returnValue=''}});
+window.addEventListener('focus',()=>{if(S.root&&S.perm==='granted'&&!S.loading&&S.tab==='home'&&Date.now()-(S.loadedAt||0)>60000)loadAll()});
+
+render();restoreRoot();
+</script>
+</body>
+</html>
