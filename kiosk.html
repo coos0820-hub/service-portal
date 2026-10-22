@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>看板｜台灣普熙技術服務部</title>
+<style>
+:root{--bg:#0c141e;--pn:#141e2b;--pn2:#1b2838;--ln:#26364a;--ink:#e9eef5;--sub:#93a5ba;--mut:#5a6b80;--acc:#4da3ff;--ok:#2fbf71;--bad:#ff5a5a;--warn:#f5a524;--today:rgba(77,163,255,.10);--s:1}
+:root[data-theme=light]{--bg:#e9edf2;--pn:#ffffff;--pn2:#f3f5f8;--ln:#d6dce4;--ink:#16202b;--sub:#56636f;--mut:#9aa6b4;--acc:#1f6feb;--ok:#1f9d55;--bad:#d93a3a;--warn:#c77700;--today:rgba(31,111,235,.07)}
+*{box-sizing:border-box}
+i{font-style:normal}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink)}
+body{font-family:"Microsoft JhengHei","PingFang TC","Noto Sans CJK TC","Noto Sans TC",sans-serif;font-size:calc(1.55vh*var(--s));line-height:1.3}
+body.idle,body.idle *{cursor:none!important}
+#app{height:100vh;display:grid;grid-template-rows:auto auto 1fr auto;gap:1.1vh;padding:1.2vh 1.3vw 0.6vh}
+header{display:flex;align-items:center;gap:1.2vw;min-height:5.6vh}
+#ttl{font-size:2.05em;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+#pills{display:flex;gap:.4em}
+#pills span{font-size:1.05em;padding:.2em .8em;border-radius:1em;border:1px solid var(--ln);color:var(--sub)}
+#pills span.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.hsp{flex:1}
+#stat{font-size:.95em;color:var(--sub);display:flex;align-items:center;gap:.4em;white-space:nowrap}
+#stat i{width:.7em;height:.7em;border-radius:50%;background:var(--ok);display:inline-block}
+#stat.warn i{background:var(--warn)}#stat.warn{color:var(--warn)}
+#stat.bad i{background:var(--bad)}#stat.bad{color:var(--bad)}
+#date{font-size:1.3em;color:var(--sub);white-space:nowrap}
+#clock{font-size:2.6em;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+#gear{background:none;border:0;color:var(--mut);font-size:1.4em;cursor:pointer;opacity:0;transition:opacity .3s;padding:0 .2em}
+body:not(.idle) #gear{opacity:1}
+#kpi{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:1vw}
+.k{background:var(--pn);border:1px solid var(--ln);border-radius:.6em;padding:.55em .9em;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.k .l{font-size:1.05em;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k .v{font-size:2.7em;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.k .v small{font-size:.42em;color:var(--sub);font-weight:400;margin-left:.25em}
+.k .x{font-size:.9em;color:var(--sub)}
+.k.warn .v{color:var(--warn)}.k.bad .v{color:var(--bad)}.k.ok .v{color:var(--ok)}
+main{min-height:0;display:grid;gap:1vw}
+.pn{background:var(--pn);border:1px solid var(--ln);border-radius:.6em;padding:.7em .9em;min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.pn>h2{margin:0 0 .5em;font-size:1.3em;display:flex;align-items:baseline;gap:.6em;white-space:nowrap}
+.pn>h2 small{font-size:.75em;color:var(--sub);font-weight:400}
+.col{display:flex;flex-direction:column;gap:1vw;min-height:0}
+.col>.pn{flex:1}
+.mut{color:var(--mut)}.sub{color:var(--sub)}
+.empty{color:var(--sub);text-align:center;padding:2em;font-size:1.2em}
+.empty.big{font-size:1.8em;margin-top:15vh}
+#prog{height:.45vh;background:var(--pn2);border-radius:1vh;overflow:hidden}
+#prog i{display:block;height:100%;width:0;background:var(--acc);opacity:.7}
+/* 報工：今日時間軸 */
+.tl{display:flex;flex-direction:column;flex:1;min-height:0}
+.tlh,.tlr{display:grid;grid-template-columns:6.6em 1fr 3.6em 15em;gap:.7em;align-items:center}
+.tlh{color:var(--sub);padding-bottom:.25em;border-bottom:1px solid var(--ln)}
+.tlh>*{font-size:.85em}
+.tlr{flex:1;max-height:8.5vh;min-height:0;border-bottom:1px solid var(--ln)}
+.tlr .nm{font-size:1.2em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tlr.none .nm{color:var(--mut)}
+.tlr .hr{font-size:1.25em;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.tlr .cur{font-size:.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:72%;min-height:1.6em;max-height:4.2em}
+.tlh .track{height:1.2em;min-height:0}
+.track .tk{position:absolute;top:0;bottom:0;border-left:1px dashed var(--ln)}
+.tlh .track .tk{border:0;transform:translateX(-50%)}
+.track .brk{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--ln) 6px 7px);opacity:.6}
+.track .seg{position:absolute;top:8%;bottom:8%;border-radius:.3em;color:#fff;font-size:.88em;padding:0 .35em;display:flex;align-items:center;overflow:hidden;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.track .now{position:absolute;top:-6%;bottom:-6%;width:2px;background:var(--bad);z-index:2}
+.tlh .now{display:none}
+.dot{display:inline-block;width:.75em;height:.75em;border-radius:50%;margin-right:.3em;vertical-align:-.05em}
+/* 工單進度 */
+.wol{display:flex;flex-direction:column;gap:.45em;overflow:hidden}
+.wo{background:var(--pn2);border-radius:.45em;padding:.4em .6em}
+.wo .a{display:flex;align-items:baseline;gap:.5em;white-space:nowrap}
+.wo .a b{font-size:1.12em}
+.wo .a .w{color:var(--sub);font-size:.85em;overflow:hidden;text-overflow:ellipsis}
+.wo .a .r{margin-left:auto;color:var(--sub);font-size:.9em}
+.sts{display:flex;gap:.3em;margin-top:.3em}
+.sts span{flex:1;text-align:center;font-size:.82em;border-radius:.25em;padding:.1em 0;border:1px solid var(--ln);color:var(--mut)}
+.sts span.d{background:#2f6fb8;border-color:#2f6fb8;color:#fff}
+.sts span.l{background:var(--acc);border-color:var(--ink);color:#fff;font-weight:700;box-shadow:0 0 0 2px var(--acc)}
+/* 週表 */
+.wg{display:grid;flex:1;min-height:0;border-top:1px solid var(--ln)}
+.wg>div{border-bottom:1px solid var(--ln);border-right:1px solid var(--ln);padding:.3em .45em;min-width:0;min-height:0;overflow:hidden}
+.wg .h{font-weight:700;text-align:center;color:var(--sub);font-size:1.02em;padding:.35em}
+.wg .h.td{color:var(--acc)}
+.wg .td{background:var(--today)}
+.wg .rn{font-weight:700;font-size:1.15em;display:flex;flex-direction:column;justify-content:center}
+.wg .rn small{font-size:.7em;color:var(--sub);font-weight:400}
+.wg .c{display:flex;flex-direction:column;justify-content:center;gap:.25em}
+.wg .c .n{font-size:1.45em;font-weight:700;font-variant-numeric:tabular-nums}
+.wg .tot{font-weight:700;text-align:right;font-size:1.3em;display:flex;align-items:center;justify-content:flex-end}
+.wg .ft{font-weight:700;color:var(--sub);text-align:center}
+.wg .we{background:rgba(127,127,127,.05)}
+.bar{display:flex;height:.55em;border-radius:.3em;overflow:hidden;background:var(--pn2)}
+.bar i{display:block;height:100%}
+/* 長條 */
+.bl{display:flex;flex-direction:column;gap:.5em;overflow:hidden}
+.br{display:grid;grid-template-columns:7.5em 1fr 4.2em;gap:.6em;align-items:center}
+.br .v small{font-weight:400;color:var(--sub);margin-left:.3em}
+.bl.fill{flex:1;justify-content:space-evenly}
+.bl.fill .br{font-size:1.3em;grid-template-columns:6em 1fr 4em}
+.bl.fill .br .bar{height:1.3em}
+.bl.wide .br{grid-template-columns:6.5em 1fr 6.8em}
+.br .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.br .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.br .bar{height:1.15em}
+.lg{display:flex;flex-wrap:wrap;gap:.3em 1em;font-size:.92em;color:var(--sub);margin-bottom:.6em}
+/* 排程 */
+.chip{background:var(--pn2);border-left:.32em solid var(--c,var(--acc));border-radius:.3em;padding:.2em .4em;line-height:1.25;overflow:hidden;min-width:0}
+.chip b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:1.02em}
+.chip span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.82em;color:var(--sub)}
+.chip.late{box-shadow:inset 0 0 0 2px var(--bad)}
+.chip.late b{color:var(--bad)}
+.chip.closed{opacity:.6}
+.cells{display:flex;flex-direction:column;gap:.25em;min-height:0;overflow:hidden}
+.dr{display:grid;grid-template-columns:6.6em 1fr;gap:.7em;align-items:stretch;border-bottom:1px solid var(--ln);padding:.45em 0;min-height:0}
+.dr .nm{font-size:1.25em;font-weight:700;display:flex;align-items:center}
+.cards{display:flex;gap:.6em;flex-wrap:wrap;min-width:0}
+.card{background:var(--pn2);border-left:.4em solid var(--c,var(--acc));border-radius:.4em;padding:.4em .7em;min-width:14em;max-width:100%;flex:1 1 18em}
+.card b{font-size:1.35em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .m{color:var(--sub);font-size:.95em;display:flex;flex-wrap:wrap;gap:.2em .9em}
+.card.late{box-shadow:inset 0 0 0 2px var(--bad)}
+.pl{display:flex;flex-direction:column;gap:.4em;overflow:hidden}
+.pi{display:grid;grid-template-columns:1fr auto;gap:.1em .6em;background:var(--pn2);border-left:.32em solid #f07a43;border-radius:.35em;padding:.3em .55em}
+.pi b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi .wt{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.pi .wt.w2{color:var(--warn)}.pi .wt.w3{color:var(--bad)}
+.pi span{grid-column:1/-1;font-size:.82em;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal{display:grid;flex:1;min-height:0;border-top:1px solid var(--ln);border-left:1px solid var(--ln)}
+.cal>div{border-bottom:1px solid var(--ln);border-right:1px solid var(--ln);padding:.2em .3em;min-height:0;min-width:0;overflow:hidden;display:flex;flex-direction:column;gap:.18em}
+.cal .h{font-weight:700;color:var(--sub);text-align:center;display:block;padding:.3em}
+.cal .dn{font-weight:700;font-size:.95em;color:var(--sub);display:flex;justify-content:space-between}
+.cal .om{opacity:.38}
+.cal .td .dn{color:var(--acc)}
+.cal .more{font-size:.8em;color:var(--sub)}
+.cal .chip{padding:.08em .35em}
+.cal .chip b{font-size:.9em}
+/* 覆蓋層與設定 */
+#ov{position:fixed;inset:0;background:rgba(5,10,16,.86);display:flex;align-items:center;justify-content:center;z-index:50;cursor:pointer}
+#ov[hidden]{display:none}
+#ov .box{background:var(--pn);border:1px solid var(--ln);border-radius:1em;padding:2.2em 2.8em;max-width:62vw;text-align:center;cursor:default}
+#ov h1{margin:0 0 .5em;font-size:2.2em}
+#ov p{font-size:1.25em;color:var(--sub);margin:.4em 0}
+.btn{font:inherit;font-size:1em;border:1px solid var(--ln);background:var(--pn2);color:var(--ink);border-radius:.4em;padding:.45em 1em;cursor:pointer}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.big{font-size:1.4em;padding:.5em 1.4em;margin-top:.6em}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(30em,92vw);background:var(--pn);border-left:1px solid var(--ln);z-index:60;padding:1.2em 1.4em;overflow:auto;font-size:15px}
+#panel[hidden]{display:none}
+#panel h3{margin:0 0 .8em}
+#panel label{display:block;margin-bottom:.8em;color:var(--sub);font-size:.92em}
+#panel input[type=number],#panel input[type=text],#panel select{display:block;width:100%;margin-top:.25em;font:inherit;font-size:1.05em;padding:.35em .5em;border:1px solid var(--ln);border-radius:.35em;background:var(--pn2);color:var(--ink)}
+#panel .cb{display:flex;gap:1em;margin-top:.3em;color:var(--ink)}
+#panel .row{display:flex;gap:.5em;flex-wrap:wrap;margin:.8em 0}
+#panel .info{font-size:.85em;color:var(--sub);background:var(--pn2);border-radius:.4em;padding:.6em .7em;margin-top:.6em;line-height:1.55}
+#toast{position:fixed;left:50%;bottom:3vh;transform:translateX(-50%);background:#1f2d3d;color:#fff;padding:.6em 1.2em;border-radius:.5em;z-index:70;font-size:1.1em}
+#toast[hidden]{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div id="ttl">看板</div>
+    <div id="pills"></div>
+    <div class="hsp"></div>
+    <div id="stat"><i></i><span></span></div>
+    <div id="date"></div>
+    <div id="clock">--:--</div>
+    <button id="gear" title="設定（S 鍵）">⚙</button>
+  </header>
+  <section id="kpi"></section>
+  <main id="main"></main>
+  <div id="prog"><i></i></div>
+</div>
+<div id="ov" hidden></div>
+<div id="panel" hidden></div>
+<div id="toast" hidden></div>
+
+<script>
+'use strict';
+const VER='看板 v1.0（2026-10-22）';
+/* ---------- 工具 ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parseD=s=>{const[y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d)};
+const addD=(s,n)=>{const d=parseD(s);d.setDate(d.getDate()+n);return ymd(d)};
+const today=()=>ymd(new Date());
+const diffD=(a,b)=>{const v=Math.round((parseD(b)-parseD(a))/864e5);return isNaN(v)?null:v};
+const mondayOf=s=>{const d=parseD(s);d.setDate(d.getDate()-((d.getDay()+6)%7));return ymd(d)};
+const md=s=>s?(+s.slice(5,7))+'/'+(+s.slice(8,10)):'';
+const WD=['日','一','二','三','四','五','六'];
+const wd=s=>WD[parseD(s).getDay()];
+const isWE=s=>{const g=parseD(s).getDay();return g===0||g===6};
+const hm=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes())};
+const toMin=t=>{if(!t||!String(t).includes(':'))return null;const[a,b]=String(t).split(':');const v=+a*60+ +b;return isNaN(v)?null:v};
+const nowMin=()=>{const d=new Date();return d.getHours()*60+d.getMinutes()};
+const fh=n=>{const v=Math.round((n||0)*10)/10;return Number.isInteger(v)?String(v):v.toFixed(1)};
+const ls={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const shortCust=s=>String(s||'').replace(/股份有限公司|有限公司|\(股\)|（股）/g,'').trim();
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,3500)}
+
+/* 報工共用檔可能是壓縮格式（SR0/SR1） */
+function b64uDec(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+async function parseAny(t){
+  t=String(t||'').replace(/^﻿/,'').trim();if(!t)return null;
+  if(t.startsWith('SR0:'))return JSON.parse(new TextDecoder().decode(b64uDec(t.slice(4))));
+  if(t.startsWith('SR1:')){const s=new Blob([b64uDec(t.slice(4))]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return JSON.parse(await new Response(s).text())}
+  return JSON.parse(t);
+}
+
+/* ---------- 常數 ---------- */
+const VIEWS=['day','week','month'];
+const VN={day:'今日',week:'本週',month:'本月'};
+const TC={WS:'#3d8bfd',FS:'#2fbf71',SYS:'#a77bff',TEST:'#1fb5c9',SUP:'#ff8a3d','5S':'#b8926a',TRN:'#ee5a9f',OTH:'#7f90a6'};
+const TN={WS:'工單維修',FS:'現場服務',SYS:'系統支援',TEST:'新機測試',SUP:'跨部門支援','5S':'5S 整理',TRN:'教育訓練',OTH:'其他'};
+const code=t=>String(t||'').split(' ')[0];
+const tcol=c=>TC[c]||TC.OTH;
+const tname=t=>TN[code(t)]||String(t||'').split(' ').slice(1).join(' ')||t||'其他';
+const SC={'待安排':'#f07a43','已排程':'#3d8bfd','待審核':'#f2b01e','結案':'#2fbf71','取消':'#8a8f96','轉系統部門':'#8b7bff'};
+const RX={report:/報工|service.?report/i,fs:/field|^\d*_?fs\b|排程|訊息單/i,settings:/共用設定|setting/i};
+
+/* ---------- 設定（網址參數 → 本機儲存覆蓋） ---------- */
+const P=new URLSearchParams(location.search);
+const URL_SHOW=P.get('show')==='fs'?'fs':'report';
+const CFGKEY='kiosk_cfg_'+URL_SHOW;
+function loadCfg(){
+  const c={show:URL_SHOW,views:['day','week','month'],rotate:60,refresh:120,theme:'dark',scale:100,title:''};
+  if(P.get('view')){const v=P.get('view').split(',').filter(x=>VIEWS.includes(x));if(v.length)c.views=v}
+  for(const k of ['rotate','refresh','scale']){const n=+P.get(k);if(n)c[k]=n}
+  if(P.get('theme'))c.theme=P.get('theme')==='light'?'light':'dark';
+  if(P.get('title'))c.title=P.get('title');
+  const s=ls.get(CFGKEY);if(s&&typeof s==='object')Object.assign(c,s);
+  c.show=c.show==='fs'?'fs':'report';
+  if(!Array.isArray(c.views))c.views=['week'];c.views=VIEWS.filter(v=>c.views.includes(v));if(!c.views.length)c.views=['week'];
+  c.rotate=Math.max(10,+c.rotate||60);c.refresh=Math.max(30,+c.refresh||120);c.scale=Math.min(170,Math.max(60,+c.scale||100));
+  return c;
+}
+let C=loadCfg();
+const DEMO=P.get('demo')==='1';
+const SRC_URL=P.get('src')||'';
+
+/* ---------- 狀態 ---------- */
+const S={vi:0,src:null,dir:null,rep:{fh:null,mod:0,data:null},fs:{set:null,setMod:0,cd:{},cm:{}},okAt:0,err:'',busy:false,started:false};
+const curView=()=>C.views[S.vi%C.views.length];
+
+/* ---------- 資料夾存取（與入口網站共用 IndexedDB） ---------- */
+const FSA='showDirectoryPicker' in window;
+const idb={db:null,
+  async open(){if(this.db)return this.db;this.db=await new Promise((res,rej)=>{const r=indexedDB.open('svc_portal',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('h'))r.result.createObjectStore('h')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});return this.db},
+  async get(k){try{const db=await this.open();return await new Promise(r=>{const q=db.transaction('h').objectStore('h').get(k);q.onsuccess=()=>r(q.result||null);q.onerror=()=>r(null)})}catch(e){return null}},
+  async set(k,v){try{const db=await this.open();return await new Promise(r=>{const t=db.transaction('h','readwrite');t.objectStore('h').put(v,k);t.oncomplete=()=>r(true);t.onerror=()=>r(false)})}catch(e){return false}}};
+async function getSource(){
+  let h=await idb.get('kiosk_'+C.show);if(h)return {h,via:'看板自己指定'};
+  if(localStorage.getItem('svc_portal_mode')==='each'){h=await idb.get('each_'+C.show);if(h)return {h,via:'入口網站（個別指定）'}}
+  h=await idb.get('root');if(h)return {h,via:'入口網站（NAS 根目錄）'};
+  return null;
+}
+async function findReport(dir,depth){
+  const files=[],subs=[];
+  for await(const [n,h] of dir.entries()){if(h.kind==='file'&&/\.json$/i.test(n)&&!/^push_/i.test(n))files.push([n,h]);else if(h.kind==='directory'&&depth>0&&!/^(photos?|files|回報|\.|#)/i.test(n))subs.push(h)}
+  files.sort((a,b)=>(b[0]==='報工_shared.json')-(a[0]==='報工_shared.json'));
+  for(const [,h] of files){try{const f=await h.getFile();if(f.size>60e6)continue;const d=await parseAny(await f.text());if(d&&d.app==='service-report'&&Array.isArray(d.records))return {fh:h,mod:f.lastModified,data:d}}catch(e){}}
+  for(const s of subs){const r=await findReport(s,depth-1);if(r)return r}
+  return null;
+}
+async function isTarget(d){
+  if(C.show==='fs'){try{const j=JSON.parse((await (await (await d.getFileHandle('settings.json')).getFile()).text()).replace(/^﻿/,''));return !!(j&&(j.serviceTree||j.schema))}catch(e){return false}}
+  const r=await findReport(d,0);if(r){Object.assign(S.rep,r);return true}return false;
+}
+async function resolveDir(h){
+  if(await isTarget(h))return h;
+  const dirs=[];for await(const [n,x] of h.entries())if(x.kind==='directory'&&!/^[.#]/.test(n))dirs.push([n,x]);
+  let want='';const sd=dirs.find(([n])=>RX.settings.test(n));
+  if(sd){try{const j=await parseAny(await (await (await sd[1].getFileHandle('共用設定.json')).getFile()).text());want=(j&&j.folders&&j.folders[C.show])||''}catch(e){}}
+  const rx=RX[C.show];
+  const order=[...dirs.filter(([n])=>n===want),...dirs.filter(([n])=>n!==want&&rx.test(n)),...dirs.filter(([n])=>n!==want&&!rx.test(n))];
+  for(const [,x] of order){try{if(await isTarget(x))return x}catch(e){}}
+  return null;
+}
+async function loadReport(){
+  const R=S.rep;
+  if(R.fh){try{const f=await R.fh.getFile();if(f.lastModified===R.mod&&R.data)return;R.data=await parseAny(await f.text());R.mod=f.lastModified;return}catch(e){R.fh=null}}
+  const hit=await findReport(S.dir,2);if(!hit)throw new Error('找不到報工共用檔（報工_shared.json）');
+  Object.assign(R,hit);
+}
+async function loadFs(){
+  const F=S.fs,dir=S.dir;
+  const sf=await (await dir.getFileHandle('settings.json')).getFile();
+  if(sf.lastModified!==F.setMod||!F.set){F.set=JSON.parse((await sf.text()).replace(/^﻿/,''));F.setMod=sf.lastModified}
+  const y=+F.set.year||new Date().getFullYear();
+  let cdir;try{cdir=await dir.getDirectoryHandle('cases')}catch(e){throw new Error('Field Service 資料夾裡沒有 cases 資料夾')}
+  const seen=new Set();
+  for(const yy of [y,y+1]){let d;try{d=await cdir.getDirectoryHandle(String(yy))}catch(e){continue}
+    for await(const [n,h] of d.entries()){
+      if(h.kind!=='file'||!n.endsWith('.json'))continue;const k=yy+'/'+n;seen.add(k);
+      const f=await h.getFile();if(F.cm[k]===f.lastModified&&F.cd[k])continue;
+      try{F.cd[k]=JSON.parse((await f.text()).replace(/^﻿/,''));F.cm[k]=f.lastModified}catch(e){}
+    }}
+  for(const k of Object.keys(F.cd))if(!seen.has(k)){delete F.cd[k];delete F.cm[k]}
+}
+async function refresh(){
+  if(S.busy)return;S.busy=true;
+  try{
+    if(DEMO){}
+    else if(SRC_URL&&C.show==='report'){S.rep.data=await parseAny(await (await fetch(SRC_URL,{cache:'no-store'})).text())}
+    else{
+      if(!S.dir){S.dir=await resolveDir(S.src.h);if(!S.dir)throw new Error(C.show==='fs'?'在指定的資料夾裡找不到 Field Service 資料（settings.json）':'在指定的資料夾裡找不到報工共用檔（報工_shared.json）')}
+      if(C.show==='report')await loadReport();else await loadFs();
+    }
+    S.okAt=Date.now();S.err='';
+  }catch(e){
+    console.error(e);
+    if(e&&e.name==='NotAllowedError'){S.busy=false;overlay('perm');return}
+    if(e&&e.name==='NotFoundError'){S.dir=null;S.rep.fh=null}
+    S.err=(e&&e.message)||String(e);
+  }
+  S.busy=false;render();
+}
+async function ensureAndLoad(ask){
+  const h=S.src.h;let p='prompt';
+  try{p=await h.queryPermission({mode:'read'});if(p!=='granted'&&ask)p=await h.requestPermission({mode:'read'})}catch(e){p='denied'}
+  if(p!=='granted'){overlay('perm');return false}
+  hideOverlay();await refresh();startTimers();return true;
+}
+async function pickDir(){
+  if(!FSA){toast('請用電腦版 Chrome 或 Edge');return}
+  try{const h=await showDirectoryPicker({id:'kiosk-'+C.show,mode:'read'});
+    await idb.set('kiosk_'+C.show,h);S.src={h,via:'看板自己指定'};resetData();hidePanel();await ensureAndLoad(true)}
+  catch(e){if(e.name!=='AbortError')toast('指定失敗：'+e.message)}
+}
+function resetData(){S.dir=null;S.rep={fh:null,mod:0,data:null};S.fs={set:null,setMod:0,cd:{},cm:{}};S.okAt=0;S.err=''}
+
+/* ---------- 共用畫面 ---------- */
+function kpis(a){$('#kpi').innerHTML=a.map(([l,v,u,cls,x])=>`<div class="k ${cls||''}"><div class="l">${esc(l)}</div><div class="v">${v}${u?`<small>${esc(u)}</small>`:''}</div>${x?`<div class="x">${x}</div>`:''}</div>`).join('')}
+function clock(){const d=new Date();$('#clock').textContent=pad(d.getHours())+':'+pad(d.getMinutes());$('#date').textContent=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${WD[d.getDay()]}）`}
+function status(){
+  const el=$('#stat'),sp=el.querySelector('span');
+  if(DEMO){el.className='stat warn';sp.textContent='示範資料';return}
+  if(S.err){el.className='stat bad';sp.textContent=S.okAt?'讀取失敗，顯示 '+hm(S.okAt)+' 的資料':'讀取失敗';el.title=S.err;return}
+  if(!S.okAt){el.className='stat warn';sp.textContent='讀取中…';return}
+  const age=(Date.now()-S.okAt)/1000;
+  if(age>C.refresh*3){el.className='stat warn';sp.textContent='資料已 '+Math.round(age/60)+' 分鐘未更新'}
+  else{el.className='stat';sp.textContent='資料更新 '+hm(S.okAt)}
+}
+function header(v){
+  document.title=(C.title||(C.show==='report'?'報工看板':'排程看板'))+'｜看板';
+  $('#ttl').textContent=C.title||(C.show==='report'?'報工看板':'Field Service 排程看板');
+  $('#pills').innerHTML=C.views.map(x=>`<span class="${x===v?'on':''}">${VN[x]}</span>`).join('');
+  clock();status();
+}
+const hasData=()=>C.show==='report'?!!(S.rep.data&&Array.isArray(S.rep.data.records)):!!S.fs.set;
+function render(){
+  const v=curView();header(v);
+  const m=$('#main');
+  if(!hasData()){$('#kpi').innerHTML='';m.style.gridTemplateColumns='1fr';m.innerHTML=`<div class="empty big">${S.err?'⚠ '+esc(S.err):'讀取中…'}</div>`;return}
+  try{if(C.show==='report')renderReport(v);else renderFs(v)}
+  catch(e){console.error(e);m.style.gridTemplateColumns='1fr';m.innerHTML=`<div class="empty big">畫面產生失敗：${esc(e.message)}</div>`}
+}
+function barHtml(parts,total){if(!total)return '<div class="bar"></div>';return `<div class="bar">${parts.filter(p=>p[1]>0).map(([c,v])=>`<i style="width:${v/total*100}%;background:${c}"></i>`).join('')}</div>`}
+function bars(rows,maxV,unit,cls){
+  if(!rows.length)return '<div class="empty">沒有資料</div>';
+  const mx=maxV||Math.max(...rows.map(r=>r.v),1);
+  return `<div class="bl ${cls||''}">${rows.map(r=>`<div class="br"><div class="t">${r.dot?`<i class="dot" style="background:${r.dot}"></i>`:''}${esc(r.t)}</div>${r.parts?barHtml(r.parts.map(([c,v])=>[c,v]),mx):`<div class="bar"><i style="width:${r.v/mx*100}%;background:${r.c||'var(--acc)'}"></i></div>`}<div class="v">${fh(r.v)}${unit||''}${r.x?`<small>${esc(r.x)}</small>`:''}</div></div>`).join('')}</div>`;
+}
+
+/* ================= 報工 ================= */
+const RD=()=>S.rep.data;
+const recs=()=>RD().records.filter(r=>r&&!r.deleted&&r.date);
+const masterStaff=()=>((RD().master&&RD().master.staff)||[]).filter(Boolean);
+function breaks(){const m=RD().master||{};return Object.values(m.breaks||{'午休':m.lunch||['12:00','13:00']})}
+function hoursOf(r){
+  const s=toMin(r.start),e=toMin(r.end);if(s==null||e==null||e<=s)return 0;
+  let rest=0;for(const [bs,be] of breaks()){const a=toMin(bs),b=toMin(be);if(a!=null&&b!=null)rest+=Math.max(0,Math.min(e,b)-Math.max(s,a))}
+  return Math.round((e-s-rest)/6)/10;
+}
+const sumH=a=>a.reduce((s,r)=>s+hoursOf(r),0);
+function staffOrder(list,includeMaster){const m=masterStaff();const extra=[...new Set(list.map(r=>r.staff).filter(s=>s&&!m.includes(s)))];return includeMaster?[...m,...extra]:[...m.filter(s=>list.some(r=>r.staff===s)),...extra]}
+function typeParts(rs){const by={};rs.forEach(r=>{const c=code(r.type);by[c]=(by[c]||0)+hoursOf(r)});return Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([c,v])=>[tcol(c),v,c])}
+function segLabel(r){const c=code(r.type);
+  if(c==='WS')return [r.station,r.modelNo||r.model].filter(Boolean).join(' ')||'工單維修';
+  if(c==='FS')return shortCust(r.cust)||'現場服務';
+  return TN[c]||tname(r.type)}
+function renderReport(v){
+  const m=$('#main');
+  if(v==='day')return repDay(m);
+  if(v==='week')return repWeek(m);
+  return repMonth(m);
+}
+function repDay(m){
+  const t=today(),all=recs(),td=all.filter(r=>r.date===t),mon=all.filter(r=>r.date.slice(0,7)===t.slice(0,7));
+  const staff=staffOrder(td,true),who=new Set(td.map(r=>r.staff));
+  const fsH=sumH(td.filter(r=>r.kind==='FS'));
+  kpis([['今日已報工',`${who.size}<small>/ ${staff.length} 人</small>`,'',who.size<staff.length&&new Date().getHours()>=16?'warn':''],
+    ['今日工時',fh(sumH(td)),'h'],['廠內工時',fh(sumH(td.filter(r=>r.kind!=='FS'))),'h'],['廠外工時',fh(fsH),'h'],
+    ['本月累計',fh(sumH(mon)),'h','',`${new Set(mon.map(r=>r.staff)).size} 人・${mon.length} 筆`]]);
+  let a=480,b=1080;td.forEach(r=>{const s=toMin(r.start),e=toMin(r.end);if(s!=null)a=Math.min(a,Math.floor(s/60)*60);if(e!=null)b=Math.max(b,Math.ceil(e/60)*60)});
+  const X=x=>(x-a)/(b-a)*100,nm=nowMin();
+  let ticks='';for(let h=a;h<=b;h+=60)ticks+=`<i class="tk" style="left:${X(h)}%">${h/60}</i>`;
+  const brk=breaks().map(([s,e])=>[toMin(s),toMin(e)]).filter(([s,e])=>s!=null&&e!=null&&e>a&&s<b).map(([s,e])=>`<i class="brk" style="left:${X(Math.max(s,a))}%;width:${X(Math.min(e,b))-X(Math.max(s,a))}%"></i>`).join('');
+  const nowL=nm>a&&nm<b?`<i class="now" style="left:${X(nm)}%"></i>`:'';
+  const rows=staff.map(s=>{
+    const rs=td.filter(r=>r.staff===s).sort((x,y)=>(toMin(x.start)||0)-(toMin(y.start)||0));
+    const segs=rs.map(r=>{const s1=toMin(r.start),e1=toMin(r.end);if(s1==null||e1==null||e1<=s1)return '';const c=code(r.type);const w=X(e1)-X(s1);
+      return `<i class="seg" style="left:${X(s1)}%;width:${w}%;background:${tcol(c)}">${w>7?esc(segLabel(r)):''}</i>`}).join('');
+    const cur=rs.find(r=>{const s1=toMin(r.start),e1=toMin(r.end);return s1!=null&&e1!=null&&s1<=nm&&nm<e1});
+    const last=rs.slice().sort((x,y)=>(toMin(y.end)||0)-(toMin(x.end)||0))[0];
+    let st='<span class="mut">尚未報工</span>';
+    if(cur)st=`<i class="dot" style="background:${tcol(code(cur.type))}"></i><b>${esc(tname(cur.type))}</b> ${esc(segLabel(cur))}`;
+    else if(last)st=`<span class="sub">最後 ${esc(last.end||'')}</span> ${esc(segLabel(last))}`;
+    return `<div class="tlr ${rs.length?'':'none'}"><div class="nm">${esc(s)}</div><div class="track">${brk}${ticks.replace(/>\d+</g,'><')}${segs}${nowL}</div><div class="hr">${rs.length?fh(sumH(rs)):''}</div><div class="cur">${st}</div></div>`}).join('');
+  const lg=[...new Set(td.map(r=>code(r.type)))].map(c=>`<span><i class="dot" style="background:${tcol(c)}"></i>${esc(TN[c]||c)}</span>`).join('');
+  m.style.gridTemplateColumns='1fr 32%';
+  m.innerHTML=`<div class="pn"><h2>工程師今日動態 <small>${md(t)}（${wd(t)}）</small><span style="flex:1"></span><span class="lg" style="margin:0">${lg}</span></h2>
+    <div class="tl"><div class="tlh"><div></div><div class="track">${ticks}</div><div style="text-align:right">工時</div><div>目前狀態</div></div>${rows||'<div class="empty">報工主檔沒有人員</div>'}</div></div>
+    <div class="pn"><h2>工單進度 <small>近 14 天有報工的工單</small></h2>${woProgress(14)}</div>`;
+}
+function woProgress(days){
+  const t=today(),from=addD(t,-days),stations=(RD().master&&RD().master.stations)||[];
+  const g={};
+  recs().filter(r=>r.wo&&r.date>=from&&r.date<=t).forEach(r=>{const k=String(r.wo).trim();const o=g[k]||(g[k]={wo:k,model:'',modelNo:'',st:new Set(),staff:new Set(),last:'',lk:'',lastSt:'',h:0});
+    if(r.model)o.model=r.model;if(r.modelNo)o.modelNo=r.modelNo;if(r.station)o.st.add(r.station);if(r.staff)o.staff.add(r.staff);o.h+=hoursOf(r);
+    const key=r.date+' '+(r.end||'');if(key>o.lk){o.lk=key;o.last=r.date;if(r.station)o.lastSt=r.station}});
+  const list=Object.values(g).sort((a,b)=>b.lk.localeCompare(a.lk));
+  if(!list.length)return '<div class="empty">近期沒有工單報工</div>';
+  const fsz=parseFloat(getComputedStyle(document.body).fontSize)||16,n=Math.max(3,Math.floor(((window.innerHeight||1080)*0.72-fsz*2.6)/(fsz*4.45)));
+  return `<div class="wol">${list.slice(0,n).map(o=>`<div class="wo"><div class="a"><b>${esc(o.modelNo||o.model||'—')}</b>${o.modelNo&&o.model?`<span class="sub">${esc(o.model)}</span>`:''}<span class="w">${esc(o.wo)}</span><span class="r">${o.last===t?'今天':md(o.last)}・${fh(o.h)}h</span></div>
+    <div class="sts">${stations.map(s=>`<span class="${s===o.lastSt?'l':o.st.has(s)?'d':''}">${esc(s.slice(0,2))}</span>`).join('')}</div></div>`).join('')}${list.length>n?`<div class="sub">…另 ${list.length-n} 張工單</div>`:''}</div>`;
+}
+function weekDays(start,hasAny){return [...Array(7)].map((_,i)=>addD(start,i)).filter(d=>!isWE(d)||hasAny(d))}
+function repWeek(m){
+  const t=today(),ws=mondayOf(t),we=addD(ws,6),all=recs(),wk=all.filter(r=>r.date>=ws&&r.date<=we);
+  const days=weekDays(ws,d=>wk.some(r=>r.date===d)||d===t);
+  const staff=staffOrder(wk,true);
+  const wos=new Set(wk.filter(r=>r.wo).map(r=>String(r.wo).trim()));
+  kpis([['本週工時',fh(sumH(wk)),'h','',`${md(ws)}–${md(we)}`],['廠內工時',fh(sumH(wk.filter(r=>r.kind!=='FS'))),'h'],['廠外工時',fh(sumH(wk.filter(r=>r.kind==='FS'))),'h'],
+    ['本週工單數',wos.size,'張'],['報工人數',new Set(wk.map(r=>r.staff)).size,'人','',`${wk.length} 筆`]]);
+  const cols=`7em repeat(${days.length},1fr) 4.6em`;
+  let g=`<div class="h"></div>${days.map(d=>`<div class="h ${d===t?'td':''}">${md(d)}（${wd(d)}）</div>`).join('')}<div class="h">合計</div>`;
+  staff.forEach(s=>{const rs=wk.filter(r=>r.staff===s);
+    g+=`<div class="rn">${esc(s)}</div>`;
+    days.forEach(d=>{const x=rs.filter(r=>r.date===d),h=sumH(x);
+      g+=`<div class="c ${d===t?'td':''} ${isWE(d)?'we':''}">${x.length?`<div class="n">${fh(h)}</div>${barHtml(typeParts(x),Math.max(h,8))}`:d<=t?'<span class="mut">—</span>':''}</div>`});
+    g+=`<div class="tot">${rs.length?fh(sumH(rs)):''}</div>`});
+  g+=`<div class="ft">合計</div>${days.map(d=>`<div class="ft ${d===t?'td':''}">${d<=t?fh(sumH(wk.filter(r=>r.date===d))):''}</div>`).join('')}<div class="tot">${fh(sumH(wk))}</div>`;
+  const tp=typeParts(wk),tot=sumH(wk);
+  const st=(RD().master&&RD().master.stations)||[];const wsr=wk.filter(r=>code(r.type)==='WS');
+  const stRows=st.map(s=>({t:s,v:sumH(wsr.filter(r=>r.station===s)),c:TC.WS})).filter(r=>r.v>0);
+  m.style.gridTemplateColumns='1fr 26%';
+  m.innerHTML=`<div class="pn"><h2>本週人員工時 <small>${md(ws)}–${md(we)}・條狀色塊為工作類別</small></h2><div class="wg" style="grid-template-columns:${cols};grid-template-rows:auto repeat(${staff.length},minmax(0,1fr)) auto">${g}</div></div>
+   <div class="col"><div class="pn"><h2>工作類別 <small>共 ${fh(tot)} h</small></h2>${bars(tp.map(([c,v,k])=>({t:TN[k]||k,v,c,dot:c,x:tot?Math.round(v/tot*100)+'%':''})),0,'h','wide')}</div>
+   <div class="pn"><h2>廠內各站工時</h2>${bars(stRows,0,'h')}</div></div>`;
+}
+function repMonth(m){
+  const t=today(),mk=t.slice(0,7),all=recs(),mon=all.filter(r=>r.date.slice(0,7)===mk);
+  const staff=staffOrder(mon,false);
+  const fs=mon.filter(r=>r.kind==='FS'),trav=fs.reduce((s,r)=>s+(+r.travel||0),0);
+  const wos=new Set(mon.filter(r=>r.wo).map(r=>String(r.wo).trim()));
+  const pd=new Set(mon.map(r=>r.staff+'|'+r.date)).size;
+  kpis([['本月工時',fh(sumH(mon)),'h','',`${mon.length} 筆報工`],['廠內工時',fh(sumH(mon.filter(r=>r.kind!=='FS'))),'h'],['廠外工時',fh(sumH(fs)),'h','',trav?`含交通 ${fh(trav)} h`:''],
+    ['本月工單數',wos.size,'張'],['出勤人日',pd,'人日','',`${staff.length} 人有報工`]]);
+  const rows=staff.map(s=>{const rs=mon.filter(r=>r.staff===s);return {t:s,v:sumH(rs),parts:typeParts(rs)}}).sort((a,b)=>b.v-a.v);
+  const mx=Math.max(1,...rows.map(r=>r.v));
+  const used=[...new Set(mon.map(r=>code(r.type)))];
+  const fam={};mon.filter(r=>r.model&&r.kind!=='FS').forEach(r=>fam[r.model]=(fam[r.model]||0)+hoursOf(r));
+  const famRows=Object.entries(fam).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>({t:k,v,c:TC.WS}));
+  const cu={};fs.forEach(r=>{const k=shortCust(r.cust)||'（未填）';cu[k]=(cu[k]||0)+hoursOf(r)});
+  const cuRows=Object.entries(cu).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([k,v])=>({t:k,v,c:TC.FS}));
+  m.style.gridTemplateColumns='1fr 30%';
+  m.innerHTML=`<div class="pn"><h2>${+mk.slice(5)} 月人員工時</h2><div class="lg">${used.map(c=>`<span><i class="dot" style="background:${tcol(c)}"></i>${esc(TN[c]||c)}</span>`).join('')}</div>${bars(rows,mx,'h','fill')}</div>
+   <div class="col"><div class="pn"><h2>機種家族工時 <small>廠內</small></h2>${bars(famRows,0,'h')}</div><div class="pn"><h2>現場服務客戶 <small>工時前 7 名</small></h2>${bars(cuRows,0,'h')}</div></div>`;
+}
+
+/* ================= Field Service 排程 ================= */
+function fsCases(){
+  const t=today();
+  return Object.values(S.fs.cd).filter(r=>r&&r.fsn&&!r.placeholder).map(r=>{
+    const type=String(r.type||'').replace('廠内','廠內').trim();
+    const c={fsn:r.fsn,cust:r.cust||'',sc:shortCust(r.cust)||r.fsn,type,r,addr:r.addr||''};
+    c.stage=r.stage||(type==='此單作廢'?'取消':'待安排');
+    c.date=r.date||'';c.days=Math.max(1,+r.days||1);c.end=c.date?addD(c.date,c.days-1):'';
+    c.staff=Array.isArray(r.staff)?r.staff.filter(Boolean):[];c.issue=r.issue||'';
+    c.wait=c.issue&&c.stage==='待安排'?diffD(c.issue,t):null;
+    c.late=c.stage==='已排程'&&!!c.end&&c.end<t;
+    return c;
+  });
+}
+const onDay=(c,d)=>c.date&&c.date<=d&&d<=c.end;
+const fsStaff=()=>((S.fs.set&&S.fs.set.staff)||[]).filter(s=>s&&s.name&&s.active!==false).map(s=>s.name);
+const live=c=>c.stage!=='取消'&&c.stage!=='轉系統部門';
+function custArea(name){const cs=(S.fs.set&&S.fs.set.customers)||[];const c=cs.find(x=>x.name===name);return c&&(c.area||'')}
+function timeTxt(c){const r=c.r;return (r.tStart?r.tStart+(r.tEnd?'–'+r.tEnd:''):'')}
+function chip(c,showStaff){const cls=c.late?'late':c.stage==='結案'?'closed':'';
+  const sub=[c.type,timeTxt(c),c.r.vehicle,showStaff?(c.staff.join('、')||'未指派'):''].filter(Boolean).join('・');
+  return `<div class="chip ${cls}" style="--c:${SC[c.stage]||'#3d8bfd'}"><b>${c.late?'⚠ ':''}${esc(c.sc)}</b><span>${esc(sub)}</span></div>`}
+function fsKpis(cs){
+  const t=today(),ws=mondayOf(t),we=addD(ws,6);
+  const pend=cs.filter(c=>c.stage==='待安排'),maxW=Math.max(0,...pend.map(c=>c.wait||0));
+  const td=cs.filter(c=>live(c)&&onDay(c,t)),wk=cs.filter(c=>live(c)&&c.date&&c.end>=ws&&c.date<=we);
+  const rev=cs.filter(c=>c.stage==='待審核'),late=cs.filter(c=>c.late);
+  kpis([['待安排',pend.length,'件',pend.length?'warn':'',pend.length?`最久 ${maxW} 天`:''],
+    ['今日出勤',td.length,'件','',`${new Set(td.flatMap(c=>c.staff)).size} 人`],
+    ['本週排程',wk.length,'件','',`${md(ws)}–${md(we)}`],
+    ['完工待審核',rev.length,'件'],
+    ['逾期未回報',late.length,'件',late.length?'bad':'ok']]);
+}
+function pendList(cs,n){
+  const p=cs.filter(c=>c.stage==='待安排').sort((a,b)=>(b.wait||0)-(a.wait||0));
+  if(!p.length)return '<div class="empty">沒有待安排案件 👍</div>';
+  return `<div class="pl">${p.slice(0,n).map(c=>{const a=custArea(c.cust);return `<div class="pi"><b>${esc(c.sc)}</b><div class="wt ${c.wait>30?'w3':c.wait>14?'w2':''}">${c.wait??'-'} 天</div><span>${esc([c.type,a,c.r.sales||''].filter(Boolean).join('・'))}</span></div>`}).join('')}${p.length>n?`<div class="sub">…另 ${p.length-n} 件</div>`:''}</div>`;
+}
+function renderFs(v){
+  const cs=fsCases();fsKpis(cs);
+  const m=$('#main');
+  if(v==='day')return fsDay(m,cs);
+  if(v==='week')return fsWeek(m,cs);
+  return fsMonth(m,cs);
+}
+function nextWorkDay(cs,t){let d=addD(t,1);for(let i=0;i<7;i++){if(!isWE(d)||cs.some(c=>live(c)&&onDay(c,d)))return d;d=addD(d,1)}return addD(t,1)}
+function fsDay(m,cs){
+  const t=today(),td=cs.filter(c=>live(c)&&onDay(c,t));
+  const staff=fsStaff();const rows=[...staff.filter(s=>td.some(c=>c.staff.includes(s)))];
+  const un=td.filter(c=>!c.staff.length);const idle=staff.filter(s=>!rows.includes(s));
+  const card=c=>{const a=custArea(c.cust);const dn=c.days>1?`第 ${diffD(c.date,t)+1}/${c.days} 天`:'';
+    return `<div class="card ${c.late?'late':''}" style="--c:${SC[c.stage]||'#3d8bfd'}"><b>${esc(c.sc)}</b><div class="m">${[c.type,timeTxt(c),c.r.vehicle?'🚐 '+c.r.vehicle:'',a?'📍'+a:'',dn,c.staff.length>1?'同行 '+c.staff.length+' 人':''].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join('')}</div></div>`};
+  let h=rows.map(s=>`<div class="dr"><div class="nm">${esc(s)}</div><div class="cards">${td.filter(c=>c.staff.includes(s)).map(card).join('')}</div></div>`).join('');
+  if(un.length)h+=`<div class="dr"><div class="nm" style="color:var(--warn)">未指派</div><div class="cards">${un.map(card).join('')}</div></div>`;
+  if(!h)h='<div class="empty big" style="margin-top:6vh">今天沒有排程</div>';
+  const nd=nextWorkDay(cs,t),nx=cs.filter(c=>live(c)&&onDay(c,nd));
+  m.style.gridTemplateColumns='1fr 30%';
+  m.innerHTML=`<div class="pn"><h2>今日出勤 <small>${md(t)}（${wd(t)}）</small></h2><div style="flex:1;min-height:0;overflow:hidden">${h}</div>
+     ${idle.length?`<div class="sub" style="margin-top:.5em;font-size:1.05em">今日無排程：${esc(idle.join('、'))}</div>`:''}</div>
+   <div class="col"><div class="pn" style="flex:0 1 auto;max-height:46%"><h2>${md(nd)}（${wd(nd)}） <small>${nx.length} 件</small></h2><div class="cells">${nx.map(c=>chip(c,true)).join('')||'<div class="empty">沒有排程</div>'}</div></div>
+     <div class="pn"><h2>待安排 <small>依等待天數</small></h2>${pendList(cs,10)}</div></div>`;
+}
+function fsWeek(m,cs){
+  const t=today(),ws=mondayOf(t),we=addD(ws,6);
+  const vis=cs.filter(c=>live(c)&&c.date&&c.end>=ws&&c.date<=we);
+  const days=weekDays(ws,d=>vis.some(c=>onDay(c,d)));
+  const staff=fsStaff();const rows=[...staff];if(vis.some(c=>!c.staff.length))rows.push('未指派');
+  let g=`<div class="h"></div>${days.map(d=>`<div class="h ${d===t?'td':''}">${md(d)}（${wd(d)}）</div>`).join('')}`;
+  rows.forEach(s=>{const mine=vis.filter(c=>s==='未指派'?!c.staff.length:c.staff.includes(s));
+    const pd=days.filter(d=>mine.some(c=>onDay(c,d))).length;
+    g+=`<div class="rn">${esc(s)}${s==='未指派'?'':`<small>${pd} 天</small>`}</div>`;
+    days.forEach(d=>{const x=mine.filter(c=>onDay(c,d));g+=`<div class="${d===t?'td':''} ${isWE(d)?'we':''}"><div class="cells">${x.map(c=>chip(c,false)).join('')}</div></div>`})});
+  m.style.gridTemplateColumns='1fr 22%';
+  m.innerHTML=`<div class="pn"><h2>人員週排程 <small>${md(ws)}–${md(we)}</small><span style="flex:1"></span><span class="lg" style="margin:0">${['已排程','待審核','結案'].map(s=>`<span><i class="dot" style="background:${SC[s]}"></i>${s}</span>`).join('')}<span><i class="dot" style="background:var(--bad)"></i>逾期未回報</span></span></h2>
+     <div class="wg" style="grid-template-columns:6.6em repeat(${days.length},minmax(0,1fr));grid-template-rows:auto repeat(${rows.length},minmax(0,1fr))">${g}</div></div>
+   <div class="pn"><h2>待安排 <small>依等待天數</small></h2>${pendList(cs,12)}</div>`;
+}
+function fsMonth(m,cs){
+  const t=today(),mk=t.slice(0,7),first=mk+'-01';
+  const last=ymd(new Date(+mk.slice(0,4),+mk.slice(5,7),0));
+  const start=mondayOf(first),end=addD(mondayOf(last),6);
+  const days=[];for(let d=start;d<=end;d=addD(d,1))days.push(d);
+  const weeks=days.length/7;
+  const vis=cs.filter(c=>live(c)&&c.date&&c.end>=start&&c.date<=end);
+  const fsz=parseFloat(getComputedStyle(document.body).fontSize)||16;
+  const mainH=(window.innerHeight||1080)*0.66;const per=Math.max(1,Math.floor((mainH/weeks-fsz*1.6)/(fsz*1.42))-1);
+  const hd=['一','二','三','四','五','六','日'].map(x=>`<div class="h">${x}</div>`).join('');
+  const cells=days.map(d=>{const x=vis.filter(c=>onDay(c,d)).sort((a,b)=>a.sc.localeCompare(b.sc));
+    const more=x.length>per+1?x.length-per:0;const show=more?x.slice(0,per):x;
+    return `<div class="${d.slice(0,7)!==mk?'om':''} ${d===t?'td':''} ${isWE(d)?'we':''}"><div class="dn"><span>${+d.slice(8)}</span>${x.length?`<span>${x.length}</span>`:''}</div>${show.map(c=>`<div class="chip ${c.late?'late':c.stage==='結案'?'closed':''}" style="--c:${SC[c.stage]}"><b>${c.late?'⚠ ':''}${esc(c.sc)}${c.staff.length?' <span style="display:inline;color:var(--sub);font-weight:400">'+esc(c.staff.join('、'))+'</span>':''}</b></div>`).join('')}${more?`<div class="more">＋${more} 件</div>`:''}</div>`}).join('');
+  const mc=vis.filter(c=>c.date.slice(0,7)===mk||c.end.slice(0,7)===mk);
+  m.style.gridTemplateColumns='1fr';
+  m.innerHTML=`<div class="pn"><h2>${+mk.slice(5)} 月排程 <small>共 ${mc.length} 件</small><span style="flex:1"></span><span class="lg" style="margin:0">${['已排程','待審核','結案'].map(s=>`<span><i class="dot" style="background:${SC[s]}"></i>${s}</span>`).join('')}</span></h2>
+    <div class="cal" style="grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,minmax(0,.62fr));grid-template-rows:auto repeat(${weeks},minmax(0,1fr))">${hd}${cells}</div></div>`;
+}
+
+/* ---------- 覆蓋層 ---------- */
+function overlay(kind){
+  const o=$('#ov');o.hidden=false;o.dataset.kind=kind;
+  const what=C.show==='fs'?'Field Service 資料夾（裡面有 settings.json 和 cases 資料夾）':'報工資料夾（裡面有 報工_shared.json）';
+  if(kind==='browser')o.innerHTML=`<div class="box"><h1>請用 Chrome 或 Edge 開啟</h1><p>看板需要讀取共用資料夾，這個瀏覽器不支援。</p></div>`;
+  if(kind==='nosrc')o.innerHTML=`<div class="box"><h1>第一次設定</h1><p>請選擇${esc(what)}。</p><p>也可以選 NAS 上放各系統資料夾的根目錄，看板會自動尋找。</p><button class="btn pri big" data-a="pick">選擇資料夾</button></div>`;
+  if(kind==='perm')o.innerHTML=`<div class="box"><h1>按一下畫面，允許讀取資料</h1><p>瀏覽器詢問時，請選「<b>每次造訪都允許</b>」，之後開機就不用再按。</p><p class="sub" style="font-size:1em">資料夾：${esc(S.src&&S.src.h?S.src.h.name:'')}</p><button class="btn" data-a="pick" style="margin-top:1em">改選其他資料夾</button></div>`;
+}
+function hideOverlay(){$('#ov').hidden=true}
+$('#ov').addEventListener('click',e=>{
+  const a=e.target.closest('[data-a]');if(a&&a.dataset.a==='pick'){e.stopPropagation();pickDir();return}
+  if($('#ov').dataset.kind==='perm')ensureAndLoad(true);
+});
+
+/* ---------- 設定面板 ---------- */
+function showPanel(){
+  const p=$('#panel');p.hidden=false;
+  p.innerHTML=`<h3>看板設定</h3>
+   <label>顯示內容<select id="pShow"><option value="report" ${C.show==='report'?'selected':''}>報工看板</option><option value="fs" ${C.show==='fs'?'selected':''}>Field Service 排程看板</option></select></label>
+   <label>視圖（勾選多個會輪播）<div class="cb">${VIEWS.map(v=>`<span><input type="checkbox" id="pv-${v}" ${C.views.includes(v)?'checked':''}> ${VN[v]}</span>`).join('')}</div></label>
+   <label>輪播間隔（秒）<input type="number" id="pRot" min="10" value="${C.rotate}"></label>
+   <label>資料更新頻率（秒，最少 30）<input type="number" id="pRef" min="30" value="${C.refresh}"></label>
+   <label>字體大小（%）<input type="number" id="pSc" min="60" max="170" step="5" value="${C.scale}"></label>
+   <label>主題<select id="pTh"><option value="dark" ${C.theme==='dark'?'selected':''}>深色（電視建議）</option><option value="light" ${C.theme==='light'?'selected':''}>淺色</option></select></label>
+   <label>標題（留白＝預設）<input type="text" id="pTi" value="${esc(C.title)}"></label>
+   <div class="row"><button class="btn pri" data-p="save">儲存</button><button class="btn" data-p="close">關閉</button></div>
+   <div class="row"><button class="btn" data-p="pick">指定資料夾</button><button class="btn" data-p="clear">清除指定資料夾</button><button class="btn" data-p="full">全螢幕</button><button class="btn" data-p="reset">恢復網址預設</button></div>
+   <div class="info">資料來源：${S.src?esc(S.src.via)+'・'+esc(S.src.h.name):DEMO?'示範資料':SRC_URL?'網址':'未指定'}${S.dir?'<br>讀取資料夾：'+esc(S.dir.name):''}${S.err?'<br><span style="color:var(--bad)">'+esc(S.err)+'</span>':''}
+   <br>設定存在這台電腦的瀏覽器裡，優先於網址參數。<br>快捷鍵：S 設定、←→ 切換視圖、R 立即更新、F 全螢幕<br>${VER}</div>`;
+}
+function hidePanel(){$('#panel').hidden=true}
+$('#panel').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-p]');if(!b)return;const a=b.dataset.p;
+  if(a==='close')return hidePanel();
+  if(a==='full'){try{await document.documentElement.requestFullscreen()}catch(err){}return}
+  if(a==='pick')return pickDir();
+  if(a==='clear'){await idb.set('kiosk_'+C.show,null);toast('已清除，重新載入…');setTimeout(()=>location.reload(),600);return}
+  if(a==='reset'){ls.del(CFGKEY);location.reload();return}
+  if(a==='save'){
+    const n={show:$('#pShow').value,views:VIEWS.filter(v=>$('#pv-'+v).checked),rotate:+$('#pRot').value,refresh:+$('#pRef').value,scale:+$('#pSc').value,theme:$('#pTh').value,title:$('#pTi').value.trim()};
+    if(!n.views.length){toast('至少勾選一個視圖');return}
+    ls.set(CFGKEY,n);location.reload();
+  }
+});
+$('#gear').onclick=()=>$('#panel').hidden?showPanel():hidePanel();
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,select,textarea'))return;
+  const k=e.key.toLowerCase();
+  if(k==='s'){$('#panel').hidden?showPanel():hidePanel()}
+  else if(k==='r')refresh();
+  else if(k==='f'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}
+  else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){S.vi=(S.vi+(e.key==='ArrowRight'?1:C.views.length-1))%C.views.length;render();restartRot()}
+});
+
+/* ---------- 計時 ---------- */
+let rotT=null,refT=null,lastDay=today();
+function prog(){const i=$('#prog i');if(C.views.length<2){i.style.width='0';return}i.style.transition='none';i.style.width='0';void i.offsetWidth;i.style.transition=`width ${C.rotate}s linear`;i.style.width='100%'}
+function restartRot(){clearInterval(rotT);if(C.views.length>1){rotT=setInterval(()=>{S.vi=(S.vi+1)%C.views.length;render();prog()},C.rotate*1000)}prog()}
+function startTimers(){
+  if(S.started)return;S.started=true;
+  if(!DEMO)refT=setInterval(()=>{if($('#ov').hidden)refresh()},C.refresh*1000);
+  restartRot();
+  setInterval(()=>{clock();if(new Date().getSeconds()<10)status()},10000);
+  setInterval(()=>{if(today()!==lastDay){location.reload();return}if(hasData())render()},60000);
+}
+async function wake(){try{if('wakeLock' in navigator&&document.visibilityState==='visible')await navigator.wakeLock.request('screen')}catch(e){}}
+document.addEventListener('visibilitychange',wake);
+let idleT;function unidle(){document.body.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(()=>document.body.classList.add('idle'),3000)}
+document.addEventListener('mousemove',unidle);
+window.addEventListener('resize',()=>{if(hasData())render()});
+
+/* ---------- 示範資料 ---------- */
+function rng(seed){let s=seed;return ()=>{s=(s*1103515245+12345)%2147483648;return s/2147483648}}
+function makeDemo(){
+  const R=rng(20261022),pick=a=>a[Math.floor(R()*a.length)],t=today(),mk=t.slice(0,7);
+  if(C.show==='report'){
+    const staff=['工程師A','工程師B','工程師C','工程師D','工程師E','工程師F','工程師G','工程師H'];
+    const st=['拆解檢查','噴砂清洗','檢整組裝','噴漆塗層','性能測試'],mods=[['R5','RA0100F'],['Mink','MM1252A'],['COBRA','NC0100B'],['Seco','SV1040C'],['Dolphin','LB0650B']];
+    const custs=['範例科技','示範半導體','測試光電','樣本電子'];const recs=[];let wo=101;
+    for(let d=mk+'-01';d<=t;d=addD(d,1)){if(isWE(d))continue;
+      staff.forEach((s,i)=>{if(d===t&&i===7)return;if(R()<.08)return;
+        const fs=i>=5&&R()<.5;
+        if(fs){recs.push({kind:'FS',date:d,staff:s,type:'FS 客戶現場服務',start:'08:30',end:d===t?'17:30':'17:30',cust:pick(custs),svc:'保養',travel:pick([1,1.5,2]),model:pick(mods)[0]});return}
+        let cur=510;const endDay=d===t?Math.min(1050,nowMin()+90):1050;
+        while(cur<endDay-30){const len=pick([90,120,150,180,210]);const e=Math.min(cur+len,endDay);const m=pick(mods);const r5=R();
+          const type=r5<.78?'WS 工單維修':r5<.86?'SYS 系統案支援':r5<.93?'TEST 新機測試/廠驗':'5S 環境整理';
+          recs.push({kind:'WS',date:d,staff:s,type,start:pad(Math.floor(cur/60))+':'+pad(cur%60),end:pad(Math.floor(e/60))+':'+pad(e%60),wo:type.startsWith('WS')?'WO2026'+String(10000+(wo+Math.floor(R()*6))):'',station:type.startsWith('WS')?pick(st):'',model:m[0],modelNo:m[1]});
+          cur=e+(e>=720&&cur<720?0:5);if(cur>=720&&cur<780)cur=780;}
+      });wo+=2}
+    S.rep.data={app:'service-report',ver:1,records:recs,master:{staff,stations:st,breaks:{'午休':['12:00','13:00'],'晚休':['17:30','18:00']}}};
+  }else{
+    const staff=['工程師A','工程師B','工程師C','工程師D','工程師E','外包'];
+    const custs=['範例科技股份有限公司','示範半導體','測試光電','樣本電子','模擬材料','示例精密','範本化學','演示能源'];
+    const types=['定期保養','故障檢修','裝機','拆機','移機','PM 保養'];
+    const cd={};let n=1;
+    for(let off=-28;off<=24;off++){const d=addD(t,off);if(isWE(d))continue;
+      staff.slice(0,5).forEach(e=>{if(R()<.45)return;
+        const stage=d<t?(R()<.55?'結案':R()<.75?'待審核':'已排程'):'已排程';
+        const st=[e];if(R()<.2)st.push(pick(staff));
+        cd['d'+n]={fsn:'FS'+mk.replace('-','')+'-'+(n++),cust:pick(custs),type:pick(types),stage,date:d,days:R()<.12?2:1,staff:[...new Set(st)],issue:addD(d,-Math.floor(R()*20)),tStart:pick(['08:30','09:00','13:00','']),vehicle:pick(['Zinger','KIA','Canter','']),sales:'S0'+Math.floor(R()*4)}})}
+    for(let i=0;i<9;i++)cd['p'+i]={fsn:'FSP-'+i,cust:pick(custs),type:pick(types),stage:'待安排',issue:addD(t,-Math.floor(R()*40)),sales:'S0'+i%3};
+    S.fs={set:{year:+t.slice(0,4),staff:staff.map(name=>({name,active:true})),customers:[]},setMod:0,cd,cm:{}};
+  }
+}
+
+/* ---------- 啟動 ---------- */
+async function boot(){
+  document.documentElement.dataset.theme=C.theme;document.documentElement.style.setProperty('--s',C.scale/100);
+  header(curView());unidle();wake();
+  if(DEMO){makeDemo();S.okAt=Date.now();render();startTimers();return}
+  if(SRC_URL&&C.show==='report'){await refresh();startTimers();return}
+  if(!FSA){overlay('browser');return}
+  S.src=await getSource();
+  if(!S.src){render();overlay('nosrc');return}
+  await ensureAndLoad(false);
+}
+boot();
+</script>
+</body>
+</html>

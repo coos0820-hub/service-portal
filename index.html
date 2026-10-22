@@ -82,12 +82,12 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.5 (2026-10-16)';
+const VER='v1.6 (2026-10-22)';
 const SETFILE='共用設定.json';
 const SYS=[
  {k:'report',  name:'報工',         code:'10', color:'var(--c-report)',  match:/報工|service.?report/i, desc:'廠內／廠外工時回報，月報依機種、客戶、工程師統計'},
  {k:'teardown',name:'三地共用',     code:'20', color:'var(--c-teardown)',match:/三地|拆解|teardown/i,   desc:'拆解照片與備註，拆解區、組裝區、辦公室共用'},
- {k:'fs',      name:'Field Service',code:'30', color:'var(--c-fs)',      match:/field|^\d*_?fs\b|排程/i, desc:'廠外服務排程與進度，工程師以 Forms 回報完工'},
+ {k:'fs',      name:'Field Service',code:'30', color:'var(--c-fs)',      match:/field|^\d*_?fs\b|排程/i, desc:'訊息單開立、排程、完工報告與結案'},
  {k:'cq',      name:'客戶問題點',   code:'40', color:'var(--c-cq)',      match:/客戶問題|客訴|issue/i,   desc:'客訴受理、調查、對策與結案，月報中英切換'}];
 const AUX=[{k:'portal',name:'入口網站',code:'00',match:/入口|portal/i},{k:'settings',name:'共用設定',code:'01',match:/共用設定|setting/i}];
 const DEF_FAMILIES=["R5","Mink","COBRA","Seco","Dolphin","Panda","Puma","Samos","Fossa","Huckepack","其他品牌"];
@@ -185,6 +185,16 @@ async function findFile(dir,test,depth,prefer){
   for(const s of subs){const r=await findFile(s,test,depth-1,prefer);if(r){r.name=s.name+'/'+r.name;return r}}
   return null;
 }
+/* 訊息單案件系統 v2：settings.json ＋ cases/年份/FSN.json */
+async function fsV2(d){
+  let st;try{st=JSON.parse((await (await (await d.getFileHandle('settings.json')).getFile()).text()).replace(/^\uFEFF/,''))}catch(e){return null}
+  if(!st||!(st.serviceTree||st.schema))return null;
+  const y=+st.year||new Date().getFullYear(),cases={};let mod=0;
+  try{const cd=await (await d.getDirectoryHandle('cases')).getDirectoryHandle(String(y));
+    for await(const [n,h] of cd.entries()){if(h.kind!=='file'||!/\.json$/i.test(n))continue;
+      try{const f=await h.getFile();const j=JSON.parse((await f.text()).replace(/^\uFEFF/,''));if(j&&j.fsn&&!j.placeholder){cases[j.fsn]=j;mod=Math.max(mod,f.lastModified)}}catch(e){}}}catch(e){}
+  return {name:'settings.json＋cases/'+y,data:{cases,settings:st,v2:true},mod};
+}
 async function hasIndex(dir){try{await dir.getFileHandle('index.html');return true}catch(e){return false}}
 
 /* ---------- 讀取 ---------- */
@@ -209,7 +219,7 @@ async function loadAll(){
     const jobs={
       report:async d=>findFile(d,x=>x&&x.app==='service-report'&&Array.isArray(x.records),2,'報工_shared.json'),
       cq:async d=>findFile(d,x=>x&&x.app==='CQ'&&Array.isArray(x.cases),1,'客戶問題點資料.json'),
-      fs:async d=>findFile(d,(x,n)=>n==='fs_schedule.json'||(x&&x.cases&&x.settings&&typeof x.cases==='object'&&!Array.isArray(x.cases)),2,'fs_schedule.json'),
+      fs:async d=>(await fsV2(d))||findFile(d,(x,n)=>n==='fs_schedule.json'||(x&&x.cases&&x.settings&&typeof x.cases==='object'&&!Array.isArray(x.cases)),2,'fs_schedule.json'),
       teardown:async d=>{let n=0;for await(const [nm,h] of d.entries())if(h.kind==='directory'&&!/^[.#]/.test(nm))n++;return {name:'(資料夾)',data:{folders:n},mod:0}}
     };
     await Promise.all(SYS.map(async s=>{const d=S.dirs[s.k];if(!d)return;
@@ -235,6 +245,11 @@ function summarize(k){
     return {stats:[['本月報工',mon.length],['今日報工',live.filter(x=>x.date===t).length],['本月工單數',wos.size]],last:last||r.mod}}
   if(k==='cq'){const cs=d.cases||[];const open=cs.filter(c=>!['closed','cancel'].includes(c.status));
     return {stats:[['未結案',open.length],['A 級未結',open.filter(c=>c.severity==='A').length,open.some(c=>c.severity==='A')],['本月新增',cs.filter(c=>String(c.receivedAt||'').startsWith(m)).length]],last:toTs(d.updatedAt)||r.mod}}
+  if(k==='fs'&&d.v2){const cs=Object.values(d.cases).map(c=>({...c,stage:c.stage||(String(c.type||'').trim()==='此單作廢'?'取消':'待安排')}));const cnt=st=>cs.filter(c=>c.stage===st).length;
+    const mon=new Date();mon.setDate(mon.getDate()-((mon.getDay()+6)%7));const ws=ymd(mon);mon.setDate(mon.getDate()+6);const we=ymd(mon);
+    const wk=cs.filter(c=>c.date&&c.date<=we&&c.date>=ws&&!['取消','轉系統部門'].includes(c.stage)).length;
+    const last=Math.max(0,...cs.map(c=>toTs(c.updatedAt)));
+    return {stats:[['待安排',cnt('待安排'),cnt('待安排')>0],['本週排程',wk],['完工待審核',cnt('待審核')]],last:last||r.mod}}
   if(k==='fs'){const cs=Object.values(d.cases||{});const cnt=st=>cs.filter(c=>(c.stage||'待安排')===st).length;
     const mon=new Date();mon.setDate(mon.getDate()-((mon.getDay()+6)%7));const ws=ymd(mon);mon.setDate(mon.getDate()+6);const we=ymd(mon);
     const wk=cs.filter(c=>c.date&&c.date>=ws&&c.date<=we&&!['取消'].includes(c.stage)).length;
@@ -244,12 +259,12 @@ function summarize(k){
 }
 
 /* ---------- 畫面 ---------- */
-const TABS=[['home','首頁'],['settings','⚙ 共用設定'],['check','部署檢查']];
+const TABS=[['home','首頁'],['kiosk','📺 看板'],['settings','⚙ 共用設定'],['check','部署檢查']];
 function render(){
   $('#ver').textContent=VER;setStat(S.loading?'讀取中…':'');
   $('#bRoot').textContent=MODE()==='each'?'改用 NAS 根目錄':S.root?(S.perm==='granted'?'變更根目錄':'授權讀取'):'連結共用根目錄';
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('');
-  $('#main').innerHTML=S.tab==='home'?vHome():S.tab==='settings'?vSettings():vCheck();
+  $('#main').innerHTML=S.tab==='home'?vHome():S.tab==='kiosk'?vKiosk():S.tab==='settings'?vSettings():vCheck();
   if(S.tab==='check'&&!S.check&&ready())runCheck();
 }
 const OLD_LINKS=['https://coos0820-hub.github.io/service-report/','https://coos0820-hub.github.io/field-service/'];
@@ -278,6 +293,50 @@ function vHome(){
       <div class="desc">${esc(s.desc)}</div>${body}
       <div class="foot"><span class="hint">${lastT}${idxWarn}</span>${href?`<a class="btn pri" href="${href}" target="_blank" rel="noopener">開啟</a>`:`<span class="btn dis">開啟</span>`}</div></div>`}).join('')}</div>
   <p class="hint" style="margin-top:14px">入口網站只讀取資料，不會修改各系統的資料。要新增或修改紀錄，請按「開啟」進入該系統。</p>`;
+}
+
+/* ---------- 看板（電視牆） ---------- */
+const KV=[['day','今日'],['week','本週'],['month','本月']];
+const KSHOW=[['report','報工看板','報工資料夾（報工_shared.json）'],['fs','Field Service 排程看板','Field Service 資料夾（settings.json）']];
+const KDEF={report:{views:['day','week','month'],rotate:60,refresh:120,scale:100,theme:'dark'},fs:{views:['day','week','month'],rotate:60,refresh:120,scale:100,theme:'dark'}};
+const kcfg=k=>Object.assign({},KDEF[k],ls.get('svc_portal_kiosk_'+k)||{});
+const klaunch=()=>Object.assign({browser:'chrome',left:'report',w:1920,delay:20},ls.get('svc_portal_kiosk_launch')||{});
+function kioskUrl(k){const c=kcfg(k);const u=new URL('kiosk.html',location.href);u.search='';
+  u.searchParams.set('show',k);u.searchParams.set('view',KV.map(v=>v[0]).filter(v=>c.views.includes(v)).join(','));
+  u.searchParams.set('rotate',c.rotate);u.searchParams.set('refresh',c.refresh);if(+c.scale!==100)u.searchParams.set('scale',c.scale);if(c.theme!=='dark')u.searchParams.set('theme',c.theme);return u.href.replace(/%2C/gi,',')}
+function kcmd(k,i){const L=klaunch();const edge=L.browser==='edge';
+  const exe=edge?'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe':'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  return `"${exe}" --kiosk "${kioskUrl(k)}"${edge?' --edge-kiosk-type=fullscreen':''} --window-position=${i*(+L.w||1920)},0 --user-data-dir="C:\\Kiosk\\screen${i+1}" --no-first-run --no-default-browser-check --disable-session-crashed-bubble --noerrdialogs --disable-features=Translate`}
+const korder=()=>klaunch().left==='fs'?['fs','report']:['report','fs'];
+function kbat(){const L=klaunch(),o=korder();const q=c=>c.replace(/%/g,'%%');
+  return ['@echo off','rem Service dashboard kiosk launcher - generated by portal '+VER,'rem Wait for network and NAS drive after login',`timeout /t ${+L.delay||20} /nobreak >nul`,
+    `start "" ${q(kcmd(o[0],0))}`,'timeout /t 3 /nobreak >nul',`start "" ${q(kcmd(o[1],1))}`,''].join('\r\n')}
+function vKiosk(){
+  const L=klaunch(),o=korder();
+  const form=([k,name,src])=>{const c=kcfg(k);const url=kioskUrl(k);
+    return `<div class="card"><h3>${name}</h3>
+     <div class="fld"><span>視圖（勾選多個會輪播）</span><div class="row">${KV.map(([v,l])=>`<label class="row" style="gap:4px"><input type="checkbox" data-kv="${k}.${v}" ${c.views.includes(v)?'checked':''}>${l}</label>`).join('')}</div></div>
+     <div class="grid2" style="gap:10px">
+      <label class="fld"><span>輪播間隔（秒）</span><input type="text" inputmode="numeric" data-kc="${k}.rotate" value="${esc(c.rotate)}"></label>
+      <label class="fld"><span>資料更新頻率（秒，最少 30）</span><input type="text" inputmode="numeric" data-kc="${k}.refresh" value="${esc(c.refresh)}"></label>
+      <label class="fld"><span>字體大小（%）</span><input type="text" inputmode="numeric" data-kc="${k}.scale" value="${esc(c.scale)}"></label>
+      <label class="fld"><span>主題</span><select data-kc="${k}.theme"><option value="dark" ${c.theme==='dark'?'selected':''}>深色（電視建議）</option><option value="light" ${c.theme==='light'?'selected':''}>淺色</option></select></label></div>
+     <div class="fld"><span>看板網址</span><code style="word-break:break-all;padding:6px">${esc(url)}</code></div>
+     <div class="row"><a class="btn pri" href="${esc(url)}" target="_blank" rel="noopener">開啟看板</a><a class="btn" href="${esc(url+'&demo=1')}" target="_blank" rel="noopener">示範資料預覽</a><button class="btn" data-act="kcopy" data-k="${k}">複製網址</button></div>
+     <p class="hint">資料來源：${esc(src)}。在這台電腦開啟時，會沿用入口網站已連結的資料夾；看板主機第一次開啟時要自己選一次資料夾。</p></div>`};
+  return `<div class="banner info">看板只讀取資料、不會修改任何系統。設計給 40 吋電視全螢幕顯示，依設定的秒數自動更新與輪播。</div>
+  <div class="grid2">${KSHOW.map(form).join('')}</div>
+  <div class="card"><h3>看板主機啟動設定（兩台螢幕）</h3>
+   <div class="row" style="margin-bottom:10px">
+    <label class="fld" style="margin:0"><span>瀏覽器</span><select data-kl="browser"><option value="chrome" ${L.browser==='chrome'?'selected':''}>Chrome</option><option value="edge" ${L.browser==='edge'?'selected':''}>Edge</option></select></label>
+    <label class="fld" style="margin:0"><span>左邊螢幕（主螢幕）顯示</span><select data-kl="left"><option value="report" ${L.left==='report'?'selected':''}>報工看板</option><option value="fs" ${L.left==='fs'?'selected':''}>排程看板</option></select></label>
+    <label class="fld" style="margin:0;max-width:150px"><span>主螢幕寬度（像素）</span><input type="text" inputmode="numeric" data-kl="w" value="${esc(L.w)}"></label>
+    <label class="fld" style="margin:0;max-width:170px"><span>登入後等待（秒）</span><input type="text" inputmode="numeric" data-kl="delay" value="${esc(L.delay)}"></label></div>
+   <div class="row" style="margin-bottom:8px"><button class="btn ok" data-act="kbat">下載啟動檔 kiosk_start.bat</button><span class="hint">放到看板主機的「啟動」資料夾（Win+R 輸入 <code>shell:startup</code>），登入後會自動開啟兩個全螢幕看板。</span></div>
+   <div class="fld"><span>左螢幕指令</span><code style="word-break:break-all;padding:6px">start "" ${esc(kcmd(o[0],0))}</code></div>
+   <div class="fld"><span>右螢幕指令</span><code style="word-break:break-all;padding:6px">start "" ${esc(kcmd(o[1],1))}</code></div>
+   <p class="hint"><b>第一次設定：</b>執行一次 bat，兩個畫面各會出現「第一次設定」，用滑鼠按「選擇資料夾」選對應的資料夾；之後出現「按一下畫面」時，瀏覽器詢問請選「<b>每次造訪都允許</b>」。兩個畫面用不同的瀏覽器設定檔（C:\\Kiosk\\screen1、screen2），所以要各設定一次。<br>
+   看板上按 <b>S</b> 或移動滑鼠點右上角 ⚙ 可在現場調整；在這頁改了設定後，請重新下載 bat 替換。全螢幕看板按 <b>Alt+F4</b> 關閉。</p></div>`;
 }
 
 /* ---------- 共用設定 ---------- */
@@ -419,6 +478,8 @@ document.addEventListener('click',async e=>{
   if(a==='granteach')return grantEach();
   if(a==='cleareach'){const k=t.dataset.k;delete S.each[k];S.needGrant=S.needGrant.filter(x=>x!==k);await idb.set('each_'+k,null);await loadAll();if(!Object.keys(S.each).length)render();return}
   if(a==='recheck'){S.check=null;render();return}
+  if(a==='kcopy'){try{await navigator.clipboard.writeText(kioskUrl(t.dataset.k));toast('已複製網址')}catch(err){toast('無法複製，請手動選取',true)}return}
+  if(a==='kbat'){const b=new Blob([kbat()],{type:'application/octet-stream'});const u=URL.createObjectURL(b);const x=document.createElement('a');x.href=u;x.download='kiosk_start.bat';document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);toast('已下載 kiosk_start.bat');return}
   if(a==='setpw'){const p1=$('#pw1').value,p2=$('#pw2').value;if(p1.length<4){toast('密碼至少 4 碼',true);return}if(p1!==p2){toast('兩次輸入不同',true);return}
     S.set.adminHash=await sha(p1);S.unlocked=true;S.dirty=true;render();toast('記得按「儲存共用設定」才會生效');return}
   if(a==='unlock'){if(await sha($('#pw1').value)===S.set.adminHash){S.unlocked=true;render()}else toast('密碼錯誤',true);return}
@@ -435,7 +496,15 @@ document.addEventListener('input',e=>{
     el.innerHTML=!e.target.value?'':r===null?'未設定規則':r===undefined?'<span class="badc">規則寫法有誤</span>':r?'<span class="okc">✔ 符合</span>':'<span class="badc">✖ 不符合</span>';return}
   if(e.target.closest('#main')&&S.tab==='settings'){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}
 });
-document.addEventListener('change',e=>{if(e.target.dataset.folder){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}});
+document.addEventListener('change',e=>{
+  const kv=e.target.dataset.kv,kc=e.target.dataset.kc,kl=e.target.dataset.kl;
+  if(kv||kc){const [k,f]=(kv||kc).split('.');const c=kcfg(k);
+    if(kv){c.views=KV.map(v=>v[0]).filter(v=>v===f?e.target.checked:c.views.includes(v));if(!c.views.length){toast('至少勾選一個視圖',true);render();return}}
+    else if(f==='theme')c.theme=e.target.value;
+    else{const n=parseInt(e.target.value,10);const lim={rotate:[10,3600],refresh:[30,3600],scale:[60,170]}[f];if(!n){render();return}c[f]=Math.min(lim[1],Math.max(lim[0],n))}
+    ls.set('svc_portal_kiosk_'+k,c);render();return}
+  if(kl){const L=klaunch();L[kl]=['w','delay'].includes(kl)?(parseInt(e.target.value,10)||L[kl]):e.target.value;ls.set('svc_portal_kiosk_launch',L);render();return}
+  if(e.target.dataset.folder){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw1'||e.target.id==='pw2')){const b=document.querySelector('[data-act=unlock],[data-act=setpw]');if(b)b.click()}});
 window.addEventListener('beforeunload',e=>{if(S.dirty&&S.unlocked){e.preventDefault();e.returnValue=''}});
 window.addEventListener('focus',()=>{if(ready()&&!S.needGrant.length&&!S.loading&&S.tab==='home'&&Date.now()-(S.loadedAt||0)>60000)loadAll()});
