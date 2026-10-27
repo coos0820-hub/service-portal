@@ -82,7 +82,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.6 (2026-10-22)';
+const VER='v1.7 (2026-10-27)';
 const SETFILE='共用設定.json';
 const SYS=[
  {k:'report',  name:'報工',         code:'10', color:'var(--c-report)',  match:/報工|service.?report/i, desc:'廠內／廠外工時回報，月報依機種、客戶、工程師統計'},
@@ -185,6 +185,17 @@ async function findFile(dir,test,depth,prefer){
   for(const s of subs){const r=await findFile(s,test,depth-1,prefer);if(r){r.name=s.name+'/'+r.name;return r}}
   return null;
 }
+/* 客戶問題點 V2：cq_settings.json ＋ cases/cq_*.json */
+async function cqV2(d){
+  let st;try{st=JSON.parse((await (await (await d.getFileHandle('cq_settings.json')).getFile()).text()).replace(/^\uFEFF/,''))}catch(e){return null}
+  if(!st||st.app!=='CQ-settings')return null;
+  const cases=[];let mod=0;
+  try{const cd=await d.getDirectoryHandle('cases');
+    for await(const [n,h] of cd.entries()){if(h.kind!=='file'||!/^cq_.*\.json$/i.test(n))continue;
+      try{const f=await h.getFile();const j=JSON.parse((await f.text()).replace(/^\uFEFF/,''));if(j&&j.app==='CQ-case'&&j.data){cases.push(j.data);mod=Math.max(mod,f.lastModified)}}catch(e){}}}catch(e){}
+  const upd=[st.updatedAt,...cases.map(c=>c.updatedAt)].filter(Boolean).sort().pop()||'';
+  return {name:'cq_settings.json＋cases',data:{app:'CQ',master:st.master,cases,updatedAt:upd},mod};
+}
 /* 訊息單案件系統 v2：settings.json ＋ cases/年份/FSN.json */
 async function fsV2(d){
   let st;try{st=JSON.parse((await (await (await d.getFileHandle('settings.json')).getFile()).text()).replace(/^\uFEFF/,''))}catch(e){return null}
@@ -218,7 +229,7 @@ async function loadAll(){
     if(S.set&&Object.keys(S.set.folders||{}).length)await mapDirs();} // 共用設定有指定資料夾時重新對應
     const jobs={
       report:async d=>findFile(d,x=>x&&x.app==='service-report'&&Array.isArray(x.records),2,'報工_shared.json'),
-      cq:async d=>findFile(d,x=>x&&x.app==='CQ'&&Array.isArray(x.cases),1,'客戶問題點資料.json'),
+      cq:async d=>(await cqV2(d))||findFile(d,x=>x&&x.app==='CQ'&&Array.isArray(x.cases),1,'客戶問題點資料.json'),
       fs:async d=>(await fsV2(d))||findFile(d,(x,n)=>n==='fs_schedule.json'||(x&&x.cases&&x.settings&&typeof x.cases==='object'&&!Array.isArray(x.cases)),2,'fs_schedule.json'),
       teardown:async d=>{let n=0;for await(const [nm,h] of d.entries())if(h.kind==='directory'&&!/^[.#]/.test(nm))n++;return {name:'(資料夾)',data:{folders:n},mod:0}}
     };
