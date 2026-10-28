@@ -82,7 +82,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.7 (2026-10-27)';
+const VER='v1.8 (2026-10-28)';
 const SETFILE='共用設定.json';
 const SYS=[
  {k:'report',  name:'報工',         code:'10', color:'var(--c-report)',  match:/報工|service.?report/i, desc:'廠內／廠外工時回報，月報依機種、客戶、工程師統計'},
@@ -520,6 +520,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw1'
 window.addEventListener('beforeunload',e=>{if(S.dirty&&S.unlocked){e.preventDefault();e.returnValue=''}});
 window.addEventListener('focus',()=>{if(ready()&&!S.needGrant.length&&!S.loading&&S.tab==='home'&&Date.now()-(S.loadedAt||0)>60000)loadAll()});
 
+// 首頁每 2 分鐘自動重新讀取（只在畫面可見、停在首頁、沒有未儲存修改時）
+setInterval(()=>{if(document.visibilityState==='visible'&&S.tab==='home'&&!S.dirty&&ready()&&!S.needGrant.length&&!S.loading)loadAll()},120000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&ready()&&!S.needGrant.length&&!S.loading&&S.tab==='home'&&Date.now()-(S.loadedAt||0)>60000)loadAll()});
 render();restoreRoot();
 </script>
 </body>
