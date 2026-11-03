@@ -469,6 +469,9 @@ function repMonth(m){
 }
 
 /* ================= Field Service 排程 ================= */
+/* 逾期判定：跟訊息單系統「設定 → 一般 → 逾期判定」相同（排程結束後寬限 N 天，可只算工作天） */
+function fsDue(end){const st=S.fs.set||{},n=Math.max(0,+(st.lateDays??0)||0);if(!n)return end;
+  if(!st.lateWorkdays)return addD(end,n);let d=end,k=0;while(k<n){d=addD(d,1);const w=parseD(d).getDay();if(w!==0&&w!==6)k++}return d}
 function fsCases(){
   const t=today();
   return Object.values(S.fs.cd).filter(r=>r&&r.fsn&&!r.placeholder).map(r=>{
@@ -478,7 +481,7 @@ function fsCases(){
     c.date=r.date||'';c.days=Math.max(1,+r.days||1);c.end=c.date?addD(c.date,c.days-1):'';
     c.staff=Array.isArray(r.staff)?r.staff.filter(Boolean):[];c.issue=r.issue||'';
     c.wait=c.issue&&c.stage==='待安排'?diffD(c.issue,t):null;
-    c.late=c.stage==='已排程'&&!!c.end&&c.end<t;
+    c.due=c.end?fsDue(c.end):'';c.late=c.stage==='已排程'&&!!c.due&&c.due<t;
     return c;
   });
 }
