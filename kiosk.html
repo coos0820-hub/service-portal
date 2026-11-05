@@ -174,7 +174,7 @@ main{min-height:0;display:grid;gap:1vw}
 
 <script>
 'use strict';
-const VER='看板 v1.0（2026-10-22）';
+const VER='看板 v1.1（2026-11-05）';
 /* ---------- 工具 ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -247,6 +247,26 @@ const idb={db:null,
   async open(){if(this.db)return this.db;this.db=await new Promise((res,rej)=>{const r=indexedDB.open('svc_portal',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('h'))r.result.createObjectStore('h')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});return this.db},
   async get(k){try{const db=await this.open();return await new Promise(r=>{const q=db.transaction('h').objectStore('h').get(k);q.onsuccess=()=>r(q.result||null);q.onerror=()=>r(null)})}catch(e){return null}},
   async set(k,v){try{const db=await this.open();return await new Promise(r=>{const t=db.transaction('h','readwrite');t.objectStore('h').put(v,k);t.oncomplete=()=>r(true);t.onerror=()=>r(false)})}catch(e){return false}}};
+/* ---------- 本機伺服器模式（http://localhost，免授權，搭配 kiosk_server.ps1） ---------- */
+const SRV=/^https?:$/.test(location.protocol)&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const nfErr=n=>{const e=new Error('找不到 '+n);e.name='NotFoundError';return e};
+const encP=p=>p.split('/').map(encodeURIComponent).join('/');
+async function srvGet(url){const r=await fetch(url,{cache:'no-store'});if(r.status===404)throw nfErr(decodeURIComponent(url));if(!r.ok)throw new Error('本機伺服器讀取失敗（'+r.status+'）');return r}
+class HFile{constructor(path,name){this.kind='file';this.name=name;this.path=path}
+  async getFile(){const st=await (await srvGet(encP(this.path)+'?stat')).json();const path=this.path;
+    return {name:this.name,size:st.s,lastModified:st.m,async text(){return await (await srvGet(encP(path))).text()}}}}
+class HDir{constructor(path,name){this.kind='directory';this.name=name;this.path=path}
+  async list(){return await (await srvGet(encP(this.path)+'?list')).json()}
+  async *entries(){for(const it of await this.list())yield [it.n,it.d?new HDir(this.path+it.n+'/',it.n):new HFile(this.path+it.n,it.n)]}
+  async getFileHandle(n){if(!(await this.list()).some(x=>x.n===n&&!x.d))throw nfErr(n);return new HFile(this.path+n,n)}
+  async getDirectoryHandle(n){if(!(await this.list()).some(x=>x.n===n&&x.d))throw nfErr(n);return new HDir(this.path+n+'/',n)}
+  async queryPermission(){return 'granted'}
+  async requestPermission(){return 'granted'}}
+async function srvSource(){
+  if(!SRV)return null;
+  try{const j=await (await fetch('/__ping',{cache:'no-store'})).json();if(j&&j.app==='kiosk-server')return {h:new HDir('/',j.root||'SvcShare'),via:'本機伺服器（免授權）'}}catch(e){}
+  return null;
+}
 async function getSource(){
   let h=await idb.get('kiosk_'+C.show);if(h)return {h,via:'看板自己指定'};
   if(localStorage.getItem('svc_portal_mode')==='each'){h=await idb.get('each_'+C.show);if(h)return {h,via:'入口網站（個別指定）'}}
@@ -678,6 +698,8 @@ async function boot(){
   header(curView());unidle();wake();
   if(DEMO){makeDemo();S.okAt=Date.now();render();startTimers();return}
   if(SRC_URL&&C.show==='report'){await refresh();startTimers();return}
+  const sv=await srvSource();if(sv){S.src=sv;await ensureAndLoad(false);return}
+  if(SRV){S.err='本機伺服器（kiosk_server.ps1）尚未啟動，15 秒後自動重試';render();setTimeout(()=>location.reload(),15000);return}
   if(!FSA){overlay('browser');return}
   S.src=await getSource();
   if(!S.src){render();overlay('nosrc');return}
