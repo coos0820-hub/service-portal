@@ -6,6 +6,9 @@
 <title>看板｜台灣普熙技術服務部</title>
 <style>
 :root{--bg:#0c141e;--pn:#141e2b;--pn2:#1b2838;--ln:#26364a;--ink:#e9eef5;--sub:#93a5ba;--mut:#5a6b80;--acc:#4da3ff;--ok:#2fbf71;--bad:#ff5a5a;--warn:#f5a524;--today:rgba(77,163,255,.10);--s:1}
+:root[data-theme=portal]{--bg:#eef1f5;--pn:#ffffff;--pn2:#f4f6f9;--ln:#d9dee6;--ink:#1d2733;--sub:#55616f;--mut:#8f9aa8;--acc:#1f6feb;--ok:#1f9d55;--bad:#d93a3a;--warn:#c77700;--today:rgba(31,111,235,.08)}
+:root[data-theme=portal] header{--ink:#fff;--sub:#c9d3de;--mut:#9fb1c4;--ln:#47607d;background:#1f2d3d;color:#fff;margin:-1.2vh -1.3vw 0;padding:.9vh 1.3vw;border-bottom:.45vh solid var(--sysc,#1f6feb)}
+:root[data-theme=portal] .pn,:root[data-theme=portal] .k{box-shadow:0 1px 2px rgba(20,35,55,.06)}
 :root[data-theme=light]{--bg:#e9edf2;--pn:#ffffff;--pn2:#f3f5f8;--ln:#d6dce4;--ink:#16202b;--sub:#56636f;--mut:#9aa6b4;--acc:#1f6feb;--ok:#1f9d55;--bad:#d93a3a;--warn:#c77700;--today:rgba(31,111,235,.07)}
 *{box-sizing:border-box}
 i{font-style:normal}
@@ -25,8 +28,9 @@ header{display:flex;align-items:center;gap:1.2vw;min-height:5.6vh}
 #stat.bad i{background:var(--bad)}#stat.bad{color:var(--bad)}
 #date{font-size:1.3em;color:var(--sub);white-space:nowrap}
 #clock{font-size:2.6em;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}
-#gear{background:none;border:0;color:var(--mut);font-size:1.4em;cursor:pointer;opacity:0;transition:opacity .3s;padding:0 .2em}
-body:not(.idle) #gear{opacity:1}
+#gear,.fz{background:none;border:0;color:var(--mut);font-size:1.4em;cursor:pointer;opacity:0;transition:opacity .3s;padding:0 .2em}
+.fz{font-size:1.1em;font-weight:700;border:1px solid var(--ln);border-radius:.3em;padding:.05em .45em}
+body:not(.idle) #gear,body:not(.idle) .fz{opacity:1}
 #kpi{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:1vw}
 .k{background:var(--pn);border:1px solid var(--ln);border-radius:.6em;padding:.55em .9em;display:flex;flex-direction:column;justify-content:center;min-width:0}
 .k .l{font-size:1.05em;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -162,6 +166,7 @@ main{min-height:0;display:grid;gap:1vw}
     <div id="stat"><i></i><span></span></div>
     <div id="date"></div>
     <div id="clock">--:--</div>
+    <button class="fz" data-fz="-10" title="字體縮小（- 鍵）">A−</button><button class="fz" data-fz="10" title="字體放大（+ 鍵）">A+</button>
     <button id="gear" title="設定（S 鍵）">⚙</button>
   </header>
   <section id="kpi"></section>
@@ -174,7 +179,7 @@ main{min-height:0;display:grid;gap:1vw}
 
 <script>
 'use strict';
-const VER='看板 v1.1（2026-11-05）';
+const VER='看板 v1.2（2026-11-05）';
 /* ---------- 工具 ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -222,15 +227,15 @@ const P=new URLSearchParams(location.search);
 const URL_SHOW=P.get('show')==='fs'?'fs':'report';
 const CFGKEY='kiosk_cfg_'+URL_SHOW;
 function loadCfg(){
-  const c={show:URL_SHOW,views:['day','week','month'],rotate:60,refresh:120,theme:'dark',scale:100,title:''};
+  const c={show:URL_SHOW,views:['day','week','month'],rotate:60,refresh:120,theme:'portal',scale:120,title:''};
   if(P.get('view')){const v=P.get('view').split(',').filter(x=>VIEWS.includes(x));if(v.length)c.views=v}
   for(const k of ['rotate','refresh','scale']){const n=+P.get(k);if(n)c[k]=n}
-  if(P.get('theme'))c.theme=P.get('theme')==='light'?'light':'dark';
+  if(P.get('theme'))c.theme=['light','dark','portal'].includes(P.get('theme'))?P.get('theme'):'portal';
   if(P.get('title'))c.title=P.get('title');
   const s=ls.get(CFGKEY);if(s&&typeof s==='object')Object.assign(c,s);
   c.show=c.show==='fs'?'fs':'report';
   if(!Array.isArray(c.views))c.views=['week'];c.views=VIEWS.filter(v=>c.views.includes(v));if(!c.views.length)c.views=['week'];
-  c.rotate=Math.max(10,+c.rotate||60);c.refresh=Math.max(30,+c.refresh||120);c.scale=Math.min(170,Math.max(60,+c.scale||100));
+  c.rotate=Math.max(10,+c.rotate||60);c.refresh=Math.max(30,+c.refresh||120);c.scale=Math.min(250,Math.max(60,+c.scale||120));if(!['light','dark','portal'].includes(c.theme))c.theme='portal';
   return c;
 }
 let C=loadCfg();
@@ -609,8 +614,8 @@ function showPanel(){
    <label>視圖（勾選多個會輪播）<div class="cb">${VIEWS.map(v=>`<span><input type="checkbox" id="pv-${v}" ${C.views.includes(v)?'checked':''}> ${VN[v]}</span>`).join('')}</div></label>
    <label>輪播間隔（秒）<input type="number" id="pRot" min="10" value="${C.rotate}"></label>
    <label>資料更新頻率（秒，最少 30）<input type="number" id="pRef" min="30" value="${C.refresh}"></label>
-   <label>字體大小（%）<input type="number" id="pSc" min="60" max="170" step="5" value="${C.scale}"></label>
-   <label>主題<select id="pTh"><option value="dark" ${C.theme==='dark'?'selected':''}>深色（電視建議）</option><option value="light" ${C.theme==='light'?'selected':''}>淺色</option></select></label>
+   <label>字體大小（%）<input type="number" id="pSc" min="60" max="250" step="5" value="${C.scale}"></label>
+   <label>主題<select id="pTh"><option value="portal" ${C.theme==='portal'?'selected':''}>入口網站配色</option><option value="dark" ${C.theme==='dark'?'selected':''}>深色</option><option value="light" ${C.theme==='light'?'selected':''}>淺色</option></select></label>
    <label>標題（留白＝預設）<input type="text" id="pTi" value="${esc(C.title)}"></label>
    <div class="row"><button class="btn pri" data-p="save">儲存</button><button class="btn" data-p="close">關閉</button></div>
    <div class="row"><button class="btn" data-p="pick">指定資料夾</button><button class="btn" data-p="clear">清除指定資料夾</button><button class="btn" data-p="full">全螢幕</button><button class="btn" data-p="reset">恢復網址預設</button></div>
@@ -632,10 +637,15 @@ $('#panel').addEventListener('click',async e=>{
   }
 });
 $('#gear').onclick=()=>$('#panel').hidden?showPanel():hidePanel();
+function fontStep(d){C.scale=Math.min(250,Math.max(60,(+C.scale||120)+d));document.documentElement.style.setProperty('--s',C.scale/100);
+  const sv=ls.get(CFGKEY);ls.set(CFGKEY,Object.assign({},sv&&typeof sv==='object'?sv:{},{scale:C.scale}));render();toast('字體大小 '+C.scale+'%')}
+document.querySelectorAll('.fz').forEach(b=>b.onclick=()=>fontStep(+b.dataset.fz));
 document.addEventListener('keydown',e=>{
   if(e.target.matches('input,select,textarea'))return;
   const k=e.key.toLowerCase();
   if(k==='s'){$('#panel').hidden?showPanel():hidePanel()}
+  else if(k==='+'||k==='='||k==='add')fontStep(10);
+  else if(k==='-'||k==='subtract')fontStep(-10);
   else if(k==='r')refresh();
   else if(k==='f'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}
   else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){S.vi=(S.vi+(e.key==='ArrowRight'?1:C.views.length-1))%C.views.length;render();restartRot()}
@@ -694,7 +704,7 @@ function makeDemo(){
 
 /* ---------- 啟動 ---------- */
 async function boot(){
-  document.documentElement.dataset.theme=C.theme;document.documentElement.style.setProperty('--s',C.scale/100);
+  document.documentElement.dataset.theme=C.theme;document.documentElement.style.setProperty('--s',C.scale/100);document.documentElement.style.setProperty('--sysc',C.show==='fs'?'#2E7D32':'#1565C0');
   header(curView());unidle();wake();
   if(DEMO){makeDemo();S.okAt=Date.now();render();startTimers();return}
   if(SRC_URL&&C.show==='report'){await refresh();startTimers();return}
