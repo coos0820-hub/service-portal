@@ -168,6 +168,7 @@ main{min-height:0;display:grid;gap:1vw}
 .rc span{display:block;font-size:.9em;opacity:.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rc.task{background:transparent;color:var(--ink);border:.15em dashed var(--c)}
 .rc.dim{opacity:.45}
+.rc.pre{opacity:.6;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.25) 0 .5em,transparent .5em 1em)}
 .rc .ok{position:absolute;right:.35em;top:.2em;background:rgba(255,255,255,.92);color:#1f9d55;border-radius:1em;padding:0 .35em;font-weight:700;font-size:.85em}
 .lg{display:flex;gap:1.2em;color:var(--sub);margin-top:.5em;font-size:.95em}.lg i{display:inline-block;width:.8em;height:.8em;border-radius:.15em;margin-right:.3em;vertical-align:-.05em}
 </style>
@@ -194,7 +195,7 @@ main{min-height:0;display:grid;gap:1vw}
 
 <script>
 'use strict';
-const VER='看板 v1.3（2026-11-06）';
+const VER='看板 v1.3.1（2026-11-06）';
 /* ---------- 工具 ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -732,7 +733,7 @@ const RD2=()=>S.rsd.data;
 const rsCol=st=>RSC[Math.max(0,(RD2().stations||[]).indexOf(st))%RSC.length];
 function rsTime(e){const f=(RD2().shifts||{})['全天'];return f&&e.start===f[0]&&e.end===f[1]?'':(e.start&&e.end?e.start+'–'+e.end:'')}
 function rsCard(e,big){const sub=[e.model,e.wo?e.wo.slice(-5):'',rsTime(e),e.note].filter(Boolean).join('・');
-  return `<div class="rc ${e.task?'task':''} ${e.hold?'dim':''}" style="--c:${rsCol(e.station)}">${e.done?'<i class="ok">✓</i>':''}<b>${esc(e.title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>`}
+  return `<div class="rc ${e.task?'task':''} ${e.hold?'dim':''} ${e.pre?'pre':''}" style="--c:${rsCol(e.station)}">${e.done?'<i class="ok">✓</i>':''}<b>${e.pre?'預 ':''}${esc(e.title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>`}
 function rsDayOf(t){const d=RD2().days||{};return d[t]||[]}
 function rsNext(t){let d=addD(t,1);for(let i=0;i<7;i++){if(!isWE(d)||rsDayOf(d).length)return d;d=addD(d,1)}return addD(t,1)}
 function rsKpis(){const c=RD2().counts||{},n=k=>c[k]||0,t=today(),td=rsDayOf(t);
@@ -757,8 +758,8 @@ function renderRs(v){
   const eng=[...(D.engineers||[])];days.forEach(d=>rsDayOf(d).forEach(e=>{if(!eng.includes(e.staff))eng.push(e.staff)}));
   m.style.gridTemplateColumns='1fr';
   m.innerHTML=`<div class="pn"><h2>本週排程 <small>${md(ws)}–${md(days[days.length-1])}</small></h2><table class="rsg wk"><thead><tr><th class="nm"></th>${days.map(d=>`<th class="${d===t?'td':''}">${md(d)}（${wd(d)}）</th>`).join('')}</tr></thead><tbody>
-    ${eng.map(n=>`<tr><td class="nm">${esc(n)}</td>${days.map(d=>`<td class="${d===t?'td':''}">${rsDayOf(d).filter(e=>e.staff===n).sort((a,b)=>(D.stations||[]).indexOf(a.station)-(D.stations||[]).indexOf(b.station)).map(e=>`<div class="rc ${e.task?'task':''} ${e.hold?'dim':''}" style="--c:${rsCol(e.station)}"><b>${esc(String(e.station).slice(0,2))}　${esc(e.title)}</b><span>${esc([e.model,rsTime(e)].filter(Boolean).join('・'))}</span></div>`).join('')}</td>`).join('')}</tr>`).join('')}</tbody></table>
-    <div class="lg">${(D.stations||[]).map(s=>`<span><i style="background:${rsCol(s)}"></i>${esc(s)}</span>`).join('')}<span>✓ 當天已報工</span></div></div>`;
+    ${eng.map(n=>`<tr><td class="nm">${esc(n)}</td>${days.map(d=>`<td class="${d===t?'td':''}">${rsDayOf(d).filter(e=>e.staff===n).sort((a,b)=>(D.stations||[]).indexOf(a.station)-(D.stations||[]).indexOf(b.station)).map(e=>`<div class="rc ${e.task?'task':''} ${e.hold?'dim':''} ${e.pre?'pre':''}" style="--c:${rsCol(e.station)}"><b>${esc(String(e.station).slice(0,2))}　${e.pre?'預 ':''}${esc(e.title)}</b><span>${esc([e.model,rsTime(e)].filter(Boolean).join('・'))}</span></div>`).join('')}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    <div class="lg">${(D.stations||[]).map(s=>`<span><i style="background:${rsCol(s)}"></i>${esc(s)}</span>`).join('')}<span>✓ 當天已報工</span><span>斜線＝預排（待報價確認）</span></div></div>`;
 }
 function makeDemoRs(){
   const t=today(),ws=mondayOf(t),st=['拆解檢查','噴砂清洗','檢整組裝','噴漆塗層','性能測試'],eng=['工程師A','工程師B','工程師C'];
