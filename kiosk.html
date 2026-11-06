@@ -155,6 +155,21 @@ main{min-height:0;display:grid;gap:1vw}
 #panel .info{font-size:.85em;color:var(--sub);background:var(--pn2);border-radius:.4em;padding:.6em .7em;margin-top:.6em;line-height:1.55}
 #toast{position:fixed;left:50%;bottom:3vh;transform:translateX(-50%);background:#1f2d3d;color:#fff;padding:.6em 1.2em;border-radius:.5em;z-index:70;font-size:1.1em}
 #toast[hidden]{display:none}
+/* Repair Shop */
+.rsg{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.rsg th{color:var(--sub);font-size:1.05em;padding:.3em .4em;border-bottom:.25em solid var(--ln);text-align:left;font-weight:700;white-space:nowrap;overflow:hidden}
+.rsg th.nm,.rsg td.nm{width:6.5em}
+.rsg td{border-bottom:1px solid var(--ln);border-right:1px solid var(--ln);vertical-align:top;padding:.3em}
+.rsg td.nm{font-size:1.3em;font-weight:700;white-space:nowrap;vertical-align:middle;border-right:0}
+.rsg th.td,.rsg td.td{background:var(--today)}
+.rsg.sm{font-size:.85em}
+.rc{position:relative;border-radius:.35em;padding:.3em .55em;margin-bottom:.3em;background:var(--c);color:#fff;overflow:hidden}
+.rc b{display:block;font-size:1.2em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc span{display:block;font-size:.9em;opacity:.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc.task{background:transparent;color:var(--ink);border:.15em dashed var(--c)}
+.rc.dim{opacity:.45}
+.rc .ok{position:absolute;right:.35em;top:.2em;background:rgba(255,255,255,.92);color:#1f9d55;border-radius:1em;padding:0 .35em;font-weight:700;font-size:.85em}
+.lg{display:flex;gap:1.2em;color:var(--sub);margin-top:.5em;font-size:.95em}.lg i{display:inline-block;width:.8em;height:.8em;border-radius:.15em;margin-right:.3em;vertical-align:-.05em}
 </style>
 </head>
 <body>
@@ -179,7 +194,7 @@ main{min-height:0;display:grid;gap:1vw}
 
 <script>
 'use strict';
-const VER='看板 v1.2（2026-11-05）';
+const VER='看板 v1.3（2026-11-06）';
 /* ---------- 工具 ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -220,11 +235,12 @@ const code=t=>String(t||'').split(' ')[0];
 const tcol=c=>TC[c]||TC.OTH;
 const tname=t=>TN[code(t)]||String(t||'').split(' ').slice(1).join(' ')||t||'其他';
 const SC={'待安排':'#f07a43','已排程':'#3d8bfd','待審核':'#f2b01e','結案':'#2fbf71','取消':'#8a8f96','轉系統部門':'#8b7bff'};
-const RX={report:/報工|service.?report/i,fs:/field|^\d*_?fs\b|排程|訊息單/i,settings:/共用設定|setting/i};
+const RX={report:/報工|service.?report/i,fs:/field|^\d*_?fs\b|排程|訊息單/i,settings:/共用設定|setting/i,rs:/repair|維修排程|^\d*_?rs\b/i};
 
 /* ---------- 設定（網址參數 → 本機儲存覆蓋） ---------- */
 const P=new URLSearchParams(location.search);
-const URL_SHOW=P.get('show')==='fs'?'fs':'report';
+const SHOWS=['report','fs','rs'];
+const URL_SHOW=SHOWS.includes(P.get('show'))?P.get('show'):'report';
 const CFGKEY='kiosk_cfg_'+URL_SHOW;
 function loadCfg(){
   const c={show:URL_SHOW,views:['day','week','month'],rotate:60,refresh:120,theme:'portal',scale:120,title:''};
@@ -233,7 +249,8 @@ function loadCfg(){
   if(P.get('theme'))c.theme=['light','dark','portal'].includes(P.get('theme'))?P.get('theme'):'portal';
   if(P.get('title'))c.title=P.get('title');
   const s=ls.get(CFGKEY);if(s&&typeof s==='object')Object.assign(c,s);
-  c.show=c.show==='fs'?'fs':'report';
+  c.show=SHOWS.includes(c.show)?c.show:'report';
+  if(c.show==='rs'){c.views=c.views.map(v=>v==='month'?'week':v);c.views=[...new Set(c.views)]}
   if(!Array.isArray(c.views))c.views=['week'];c.views=VIEWS.filter(v=>c.views.includes(v));if(!c.views.length)c.views=['week'];
   c.rotate=Math.max(10,+c.rotate||60);c.refresh=Math.max(30,+c.refresh||120);c.scale=Math.min(250,Math.max(60,+c.scale||120));if(!['light','dark','portal'].includes(c.theme))c.theme='portal';
   return c;
@@ -243,7 +260,7 @@ const DEMO=P.get('demo')==='1';
 const SRC_URL=P.get('src')||'';
 
 /* ---------- 狀態 ---------- */
-const S={vi:0,src:null,dir:null,rep:{fh:null,mod:0,data:null},fs:{set:null,setMod:0,cd:{},cm:{}},okAt:0,err:'',busy:false,started:false};
+const S={vi:0,src:null,dir:null,rep:{fh:null,mod:0,data:null},rsd:{fh:null,mod:0,data:null},fs:{set:null,setMod:0,cd:{},cm:{}},okAt:0,err:'',busy:false,started:false};
 const curView=()=>C.views[S.vi%C.views.length];
 
 /* ---------- 資料夾存取（與入口網站共用 IndexedDB） ---------- */
@@ -287,6 +304,7 @@ async function findReport(dir,depth){
   return null;
 }
 async function isTarget(d){
+  if(C.show==='rs'){try{await d.getFileHandle('rs_kiosk.json');return true}catch(e){return false}}
   if(C.show==='fs'){try{const j=JSON.parse((await (await (await d.getFileHandle('settings.json')).getFile()).text()).replace(/^﻿/,''));return !!(j&&(j.serviceTree||j.schema))}catch(e){return false}}
   const r=await findReport(d,0);if(r){Object.assign(S.rep,r);return true}return false;
 }
@@ -305,6 +323,11 @@ async function loadReport(){
   if(R.fh){try{const f=await R.fh.getFile();if(f.lastModified===R.mod&&R.data)return;R.data=await parseAny(await f.text());R.mod=f.lastModified;return}catch(e){R.fh=null}}
   const hit=await findReport(S.dir,2);if(!hit)throw new Error('找不到報工共用檔（報工_shared.json）');
   Object.assign(R,hit);
+}
+async function loadRs(){
+  const R=S.rsd;const fh=R.fh||await S.dir.getFileHandle('rs_kiosk.json');const f=await fh.getFile();
+  if(f.lastModified===R.mod&&R.data)return;const d=await parseAny(await f.text());
+  if(!d||d.app!=='repair-shop-kiosk')throw new Error('rs_kiosk.json 內容不正確');R.fh=fh;R.data=d;R.mod=f.lastModified;
 }
 async function loadFs(){
   const F=S.fs,dir=S.dir;
@@ -327,14 +350,14 @@ async function refresh(){
     if(DEMO){}
     else if(SRC_URL&&C.show==='report'){S.rep.data=await parseAny(await (await fetch(SRC_URL,{cache:'no-store'})).text())}
     else{
-      if(!S.dir){S.dir=await resolveDir(S.src.h);if(!S.dir)throw new Error(C.show==='fs'?'在指定的資料夾裡找不到 Field Service 資料（settings.json）':'在指定的資料夾裡找不到報工共用檔（報工_shared.json）')}
-      if(C.show==='report')await loadReport();else await loadFs();
+      if(!S.dir){S.dir=await resolveDir(S.src.h);if(!S.dir)throw new Error(C.show==='rs'?'在指定的資料夾裡找不到 Repair Shop 看板檔（rs_kiosk.json）':C.show==='fs'?'在指定的資料夾裡找不到 Field Service 資料（settings.json）':'在指定的資料夾裡找不到報工共用檔（報工_shared.json）')}
+      if(C.show==='report')await loadReport();else if(C.show==='rs')await loadRs();else await loadFs();
     }
     S.okAt=Date.now();S.err='';
   }catch(e){
     console.error(e);
     if(e&&e.name==='NotAllowedError'){S.busy=false;overlay('perm');return}
-    if(e&&e.name==='NotFoundError'){S.dir=null;S.rep.fh=null}
+    if(e&&e.name==='NotFoundError'){S.dir=null;S.rep.fh=null;S.rsd.fh=null}
     S.err=(e&&e.message)||String(e);
   }
   S.busy=false;render();
@@ -366,17 +389,18 @@ function status(){
   else{el.className='stat';sp.textContent='資料更新 '+hm(S.okAt)}
 }
 function header(v){
-  document.title=(C.title||(C.show==='report'?'報工看板':'排程看板'))+'｜看板';
-  $('#ttl').textContent=C.title||(C.show==='report'?'報工看板':'Field Service 排程看板');
+  const dt={report:'報工看板',fs:'Field Service 排程看板',rs:'Repair Shop 排程看板'}[C.show];
+  document.title=(C.title||dt)+'｜看板';
+  $('#ttl').textContent=C.title||dt;
   $('#pills').innerHTML=C.views.map(x=>`<span class="${x===v?'on':''}">${VN[x]}</span>`).join('');
   clock();status();
 }
-const hasData=()=>C.show==='report'?!!(S.rep.data&&Array.isArray(S.rep.data.records)):!!S.fs.set;
+const hasData=()=>C.show==='report'?!!(S.rep.data&&Array.isArray(S.rep.data.records)):C.show==='rs'?!!S.rsd.data:!!S.fs.set;
 function render(){
   const v=curView();header(v);
   const m=$('#main');
   if(!hasData()){$('#kpi').innerHTML='';m.style.gridTemplateColumns='1fr';m.innerHTML=`<div class="empty big">${S.err?'⚠ '+esc(S.err):'讀取中…'}</div>`;return}
-  try{if(C.show==='report')renderReport(v);else renderFs(v)}
+  try{if(C.show==='report')renderReport(v);else if(C.show==='rs')renderRs(v);else renderFs(v)}
   catch(e){console.error(e);m.style.gridTemplateColumns='1fr';m.innerHTML=`<div class="empty big">畫面產生失敗：${esc(e.message)}</div>`}
 }
 function barHtml(parts,total){if(!total)return '<div class="bar"></div>';return `<div class="bar">${parts.filter(p=>p[1]>0).map(([c,v])=>`<i style="width:${v/total*100}%;background:${c}"></i>`).join('')}</div>`}
@@ -595,7 +619,7 @@ function fsMonth(m,cs){
 /* ---------- 覆蓋層 ---------- */
 function overlay(kind){
   const o=$('#ov');o.hidden=false;o.dataset.kind=kind;
-  const what=C.show==='fs'?'Field Service 資料夾（裡面有 settings.json 和 cases 資料夾）':'報工資料夾（裡面有 報工_shared.json）';
+  const what=C.show==='rs'?'Repair Shop 資料夾（裡面有 rs_kiosk.json）':C.show==='fs'?'Field Service 資料夾（裡面有 settings.json 和 cases 資料夾）':'報工資料夾（裡面有 報工_shared.json）';
   if(kind==='browser')o.innerHTML=`<div class="box"><h1>請用 Chrome 或 Edge 開啟</h1><p>看板需要讀取共用資料夾，這個瀏覽器不支援。</p></div>`;
   if(kind==='nosrc')o.innerHTML=`<div class="box"><h1>第一次設定</h1><p>請選擇${esc(what)}。</p><p>也可以選 NAS 上放各系統資料夾的根目錄，看板會自動尋找。</p><button class="btn pri big" data-a="pick">選擇資料夾</button></div>`;
   if(kind==='perm')o.innerHTML=`<div class="box"><h1>按一下畫面，允許讀取資料</h1><p>瀏覽器詢問時，請選「<b>每次造訪都允許</b>」，之後開機就不用再按。</p><p class="sub" style="font-size:1em">資料夾：${esc(S.src&&S.src.h?S.src.h.name:'')}</p><button class="btn" data-a="pick" style="margin-top:1em">改選其他資料夾</button></div>`;
@@ -610,7 +634,7 @@ $('#ov').addEventListener('click',e=>{
 function showPanel(){
   const p=$('#panel');p.hidden=false;
   p.innerHTML=`<h3>看板設定</h3>
-   <label>顯示內容<select id="pShow"><option value="report" ${C.show==='report'?'selected':''}>報工看板</option><option value="fs" ${C.show==='fs'?'selected':''}>Field Service 排程看板</option></select></label>
+   <label>顯示內容<select id="pShow"><option value="report" ${C.show==='report'?'selected':''}>報工看板</option><option value="fs" ${C.show==='fs'?'selected':''}>Field Service 排程看板</option><option value="rs" ${C.show==='rs'?'selected':''}>Repair Shop 排程看板</option></select></label>
    <label>視圖（勾選多個會輪播）<div class="cb">${VIEWS.map(v=>`<span><input type="checkbox" id="pv-${v}" ${C.views.includes(v)?'checked':''}> ${VN[v]}</span>`).join('')}</div></label>
    <label>輪播間隔（秒）<input type="number" id="pRot" min="10" value="${C.rotate}"></label>
    <label>資料更新頻率（秒，最少 30）<input type="number" id="pRef" min="30" value="${C.refresh}"></label>
@@ -702,11 +726,53 @@ function makeDemo(){
   }
 }
 
+/* ================= Repair Shop ================= */
+const RSC=['#eb6834','#2a78d6','#1baf7a','#6250d6','#c98a00','#7a7d75','#a14d8f'];
+const RD2=()=>S.rsd.data;
+const rsCol=st=>RSC[Math.max(0,(RD2().stations||[]).indexOf(st))%RSC.length];
+function rsTime(e){const f=(RD2().shifts||{})['全天'];return f&&e.start===f[0]&&e.end===f[1]?'':(e.start&&e.end?e.start+'–'+e.end:'')}
+function rsCard(e,big){const sub=[e.model,e.wo?e.wo.slice(-5):'',rsTime(e),e.note].filter(Boolean).join('・');
+  return `<div class="rc ${e.task?'task':''} ${e.hold?'dim':''}" style="--c:${rsCol(e.station)}">${e.done?'<i class="ok">✓</i>':''}<b>${esc(e.title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>`}
+function rsDayOf(t){const d=RD2().days||{};return d[t]||[]}
+function rsNext(t){let d=addD(t,1);for(let i=0;i<7;i++){if(!isWE(d)||rsDayOf(d).length)return d;d=addD(d,1)}return addD(t,1)}
+function rsKpis(){const c=RD2().counts||{},n=k=>c[k]||0,t=today(),td=rsDayOf(t);
+  kpis([['待拆解',n('待拆解'),'件'],['待維修',n('待維修'),'件',n('待維修')?'warn':''],['維修中',n('維修中'),'件'],['待料／HOLD',n('待料')+n('HOLD'),'件',(n('待料')+n('HOLD'))?'bad':'ok'],
+    ['今日排程',td.length,'格','',`${new Set(td.map(e=>e.staff)).size} 人`]])}
+function rsGrid(t,cls){const D=RD2(),es=rsDayOf(t),st=D.stations||[];const eng=[...(D.engineers||[])];es.forEach(e=>{if(!eng.includes(e.staff))eng.push(e.staff)});
+  return `<table class="rsg ${cls||''}"><thead><tr><th class="nm"></th>${st.map(s=>`<th style="border-bottom-color:${rsCol(s)}">${esc(s)}</th>`).join('')}</tr></thead><tbody>
+   ${eng.map(n=>`<tr><td class="nm">${esc(n)}</td>${st.map(s=>`<td>${es.filter(e=>e.staff===n&&e.station===s).map(e=>rsCard(e)).join('')}</td>`).join('')}</tr>`).join('')}</tbody></table>`}
+function rsSide(){const D=RD2(),t=today();
+  const mats=(D.mats||[]),holds=(D.holds||[]),late=(D.late||[]),wait=(D.waiting||[]);
+  const li=(a,f,n)=>{n=n||5;return a.length?`<div class="pl">${a.slice(0,n).map(f).join('')}${a.length>n?`<div class="sub">…另 ${a.length-n} 件</div>`:''}</div>`:'<div class="empty">無</div>'};
+  return `<div class="pn" style="flex:0 1 auto"><h2>待料 <small>${mats.length} 件</small></h2>${li(mats,x=>`<div class="pi"><b>${esc(x.cust)}</b><div class="wt ${x.eta&&x.eta<=t?'w3':''}">${x.eta?md(x.eta):'未定'}</div><span>${esc(x.model)}</span></div>`)}</div>
+   ${holds.length?`<div class="pn" style="flex:0 1 auto"><h2>HOLD <small>${holds.length} 件</small></h2>${li(holds,x=>`<div class="pi"><b>${esc(x.cust)}</b><span>${esc(x.model)}</span></div>`,3)}</div>`:''}
+   ${late.length?`<div class="pn" style="flex:0 1 auto"><h2 style="color:var(--bad)">超過預計上線日 <small>${late.length} 件</small></h2>${li(late,x=>`<div class="pi"><b>${esc(x.cust)}</b><div class="wt w3">${md(x.eta)}</div><span>${esc(x.model)}</span></div>`)}</div>`:''}
+   <div class="pn"><h2>還沒排程 <small>${wait.length} 件</small></h2>${li(wait,x=>`<div class="pi"><b>${esc(x.cust)}</b><div class="wt ${x.age>30?'w3':x.age>14?'w2':''}">${x.age??'-'} 天</div><span>${esc([x.model,x.u].join('・'))}</span></div>`)}</div>`}
+function renderRs(v){
+  rsKpis();const m=$('#main'),t=today();
+  if(v==='day'){const nd=rsNext(t);m.style.gridTemplateColumns='1fr 26%';
+    m.innerHTML=`<div class="col"><div class="pn" style="flex:3"><h2>今日工作 <small>${md(t)}（${wd(t)}）</small></h2>${rsDayOf(t).length?rsGrid(t):'<div class="empty big" style="margin-top:6vh">今天沒有排程</div>'}</div>
+      <div class="pn" style="flex:2"><h2>${md(nd)}（${wd(nd)}） <small>${rsDayOf(nd).length} 格</small></h2>${rsGrid(nd,'sm')}</div></div><div class="col">${rsSide()}</div>`;return}
+  const ws=mondayOf(t),days=[0,1,2,3,4,5].map(i=>addD(ws,i)).filter(d=>!(wd(d)==='六'&&!rsDayOf(d).length));const D=RD2();
+  const eng=[...(D.engineers||[])];days.forEach(d=>rsDayOf(d).forEach(e=>{if(!eng.includes(e.staff))eng.push(e.staff)}));
+  m.style.gridTemplateColumns='1fr';
+  m.innerHTML=`<div class="pn"><h2>本週排程 <small>${md(ws)}–${md(days[days.length-1])}</small></h2><table class="rsg wk"><thead><tr><th class="nm"></th>${days.map(d=>`<th class="${d===t?'td':''}">${md(d)}（${wd(d)}）</th>`).join('')}</tr></thead><tbody>
+    ${eng.map(n=>`<tr><td class="nm">${esc(n)}</td>${days.map(d=>`<td class="${d===t?'td':''}">${rsDayOf(d).filter(e=>e.staff===n).sort((a,b)=>(D.stations||[]).indexOf(a.station)-(D.stations||[]).indexOf(b.station)).map(e=>`<div class="rc ${e.task?'task':''} ${e.hold?'dim':''}" style="--c:${rsCol(e.station)}"><b>${esc(String(e.station).slice(0,2))}　${esc(e.title)}</b><span>${esc([e.model,rsTime(e)].filter(Boolean).join('・'))}</span></div>`).join('')}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    <div class="lg">${(D.stations||[]).map(s=>`<span><i style="background:${rsCol(s)}"></i>${esc(s)}</span>`).join('')}<span>✓ 當天已報工</span></div></div>`;
+}
+function makeDemoRs(){
+  const t=today(),ws=mondayOf(t),st=['拆解檢查','噴砂清洗','檢整組裝','噴漆塗層','性能測試'],eng=['工程師A','工程師B','工程師C'];
+  const cs=[['範例科技','RA0100F'],['示範半導體','NC1000B'],['測試光電','MM1252A'],['樣本電子','RA0040F'],['模擬材料','SV1040C']];const days={};let i=0;
+  for(let k=0;k<6;k++){const d=addD(ws,k);days[d]=eng.map((e,j)=>{const c=cs[(i++)%cs.length];return {staff:e,station:st[(k+j)%5],task:false,title:c[0],cust:c[0],model:c[1],wo:'WO20261101201'+pad(j),start:'08:30',end:j===1?'12:00':'17:30',shift:'',note:'',hold:false,done:d<t}})}
+  S.rsd.data={app:'repair-shop-kiosk',stations:st,engineers:eng,shifts:{'全天':['08:30','17:30']},days,counts:{'待拆解':12,'待維修':3,'維修中':6,'待料':2,'HOLD':1},
+    mats:[{cust:'範例科技',model:'RA0100F',eta:addD(t,3)},{cust:'測試光電',model:'MM1252A',eta:''}],holds:[{cust:'樣本電子',model:'RA0040F'}],late:[],waiting:cs.map((c,j)=>({cust:c[0],model:c[1],u:'待拆解',age:5+j*7}))};
+}
+
 /* ---------- 啟動 ---------- */
 async function boot(){
-  document.documentElement.dataset.theme=C.theme;document.documentElement.style.setProperty('--s',C.scale/100);document.documentElement.style.setProperty('--sysc',C.show==='fs'?'#2E7D32':'#1565C0');
+  document.documentElement.dataset.theme=C.theme;document.documentElement.style.setProperty('--s',C.scale/100);document.documentElement.style.setProperty('--sysc',{fs:'#2E7D32',rs:'#8e44ad'}[C.show]||'#1565C0');
   header(curView());unidle();wake();
-  if(DEMO){makeDemo();S.okAt=Date.now();render();startTimers();return}
+  if(DEMO){if(C.show==='rs')makeDemoRs();else makeDemo();S.okAt=Date.now();render();startTimers();return}
   if(SRC_URL&&C.show==='report'){await refresh();startTimers();return}
   const sv=await srvSource();if(sv){S.src=sv;await ensureAndLoad(false);return}
   if(SRV){S.err='本機伺服器（kiosk_server.ps1）尚未啟動，15 秒後自動重試';render();setTimeout(()=>location.reload(),15000);return}
