@@ -83,7 +83,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.10 (2026-11-06)';
+const VER='v1.10.1 (2026-11-06)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -540,13 +540,14 @@ async function runCheck(){
   rows.push(['共用設定檔',S.setExists?'ok':'warn',S.setExists?SETFILE:'尚未建立（到「共用設定」儲存一次）']);
   for(const s of [...AUX,...SYS]){const d=S.dirs[s.k];
     if(MODE()==='each'&&s.k==='portal')continue;
-    if(!d){rows.push([s.code+' '+s.name,'bad','找不到資料夾']);continue}
+    if(SYS.some(x=>x.k===s.k&&x.kind==='link'))continue;
+    if(!d){rows.push([s.code+' '+s.name,MODE()==='each'?'warn':'bad',MODE()==='each'?'還沒指定資料夾：到「首頁」這張卡片按「指定資料夾」':'找不到資料夾']);continue}
     if(s.k==='settings'){rows.push([s.code+' '+s.name,'ok',d.name]);continue}
     const sc=await scanExternal(d.h);
     let lv='ok',msg=d.name;
     if(!sc.ok){lv=s.k==='portal'||MODE()==='each'?'warn':'bad';msg+=MODE()==='each'?'：資料夾內沒有 index.html（過渡期從 GitHub Pages 開啟，不影響）':'：沒有 index.html'}
     else if(sc.ext.length){lv='warn';msg+='：網頁會連外部網址，報工電腦和拆解／組裝電腦斷網時會失效 → '+sc.ext.map(u=>'<code>'+esc(u.replace(/^https?:\/\//,'').slice(0,60))+'</code>').join(' ')}
-    if(SYS.some(x=>x.k===s.k)&&sc.ok){const df=S.data[s.k];msg+=df?'；資料：'+esc(df.name):(s.k==='teardown'?'':'；<span class="badc">找不到資料檔</span>')}
+    if(SYS.some(x=>x.k===s.k)&&sc.ok){const df=S.data[s.k];msg+=df?'；資料：'+esc(df.name):(s.k==='teardown'?'':s.k==='rs'?'；<span class="badc">還沒有 rs_kiosk.json</span>（Repair Shop 改用資料夾模式、排過一次程後產生）':'；<span class="badc">找不到資料檔</span>')}
     rows.push([s.code+' '+s.name,lv,msg]);
   }
   S.check.rows=rows;if(S.tab==='check')render();
