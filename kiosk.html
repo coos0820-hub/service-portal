@@ -195,7 +195,7 @@ main{min-height:0;display:grid;gap:1vw}
 
 <script>
 'use strict';
-const VER='看板 v1.3.1（2026-11-06）';
+const VER='看板 v1.3.2（2026-11-06）';
 /* ---------- 工具 ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -732,7 +732,7 @@ const RSC=['#eb6834','#2a78d6','#1baf7a','#6250d6','#c98a00','#7a7d75','#a14d8f'
 const RD2=()=>S.rsd.data;
 const rsCol=st=>RSC[Math.max(0,(RD2().stations||[]).indexOf(st))%RSC.length];
 function rsTime(e){const f=(RD2().shifts||{})['全天'];return f&&e.start===f[0]&&e.end===f[1]?'':(e.start&&e.end?e.start+'–'+e.end:'')}
-function rsCard(e,big){const sub=[e.model,e.wo?e.wo.slice(-5):'',rsTime(e),e.note].filter(Boolean).join('・');
+function rsCard(e,big){const sub=[e.model,e.wo?e.wo.slice(-5):'',e.parts>1?'第 '+e.part+'/'+e.parts+' 天':'',rsTime(e),e.note].filter(Boolean).join('・');
   return `<div class="rc ${e.task?'task':''} ${e.hold?'dim':''} ${e.pre?'pre':''}" style="--c:${rsCol(e.station)}">${e.done?'<i class="ok">✓</i>':''}<b>${e.pre?'預 ':''}${esc(e.title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>`}
 function rsDayOf(t){const d=RD2().days||{};return d[t]||[]}
 function rsNext(t){let d=addD(t,1);for(let i=0;i<7;i++){if(!isWE(d)||rsDayOf(d).length)return d;d=addD(d,1)}return addD(t,1)}
@@ -758,7 +758,7 @@ function renderRs(v){
   const eng=[...(D.engineers||[])];days.forEach(d=>rsDayOf(d).forEach(e=>{if(!eng.includes(e.staff))eng.push(e.staff)}));
   m.style.gridTemplateColumns='1fr';
   m.innerHTML=`<div class="pn"><h2>本週排程 <small>${md(ws)}–${md(days[days.length-1])}</small></h2><table class="rsg wk"><thead><tr><th class="nm"></th>${days.map(d=>`<th class="${d===t?'td':''}">${md(d)}（${wd(d)}）</th>`).join('')}</tr></thead><tbody>
-    ${eng.map(n=>`<tr><td class="nm">${esc(n)}</td>${days.map(d=>`<td class="${d===t?'td':''}">${rsDayOf(d).filter(e=>e.staff===n).sort((a,b)=>(D.stations||[]).indexOf(a.station)-(D.stations||[]).indexOf(b.station)).map(e=>`<div class="rc ${e.task?'task':''} ${e.hold?'dim':''} ${e.pre?'pre':''}" style="--c:${rsCol(e.station)}"><b>${esc(String(e.station).slice(0,2))}　${e.pre?'預 ':''}${esc(e.title)}</b><span>${esc([e.model,rsTime(e)].filter(Boolean).join('・'))}</span></div>`).join('')}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    ${eng.map(n=>`<tr><td class="nm">${esc(n)}</td>${days.map(d=>`<td class="${d===t?'td':''}">${rsDayOf(d).filter(e=>e.staff===n).sort((a,b)=>(D.stations||[]).indexOf(a.station)-(D.stations||[]).indexOf(b.station)).map(e=>`<div class="rc ${e.task?'task':''} ${e.hold?'dim':''} ${e.pre?'pre':''}" style="--c:${rsCol(e.station)}"><b>${esc(String(e.station).slice(0,2))}　${e.pre?'預 ':''}${esc(e.title)}</b><span>${esc([e.model,e.parts>1?e.part+'/'+e.parts:'',rsTime(e)].filter(Boolean).join('・'))}</span></div>`).join('')}</td>`).join('')}</tr>`).join('')}</tbody></table>
     <div class="lg">${(D.stations||[]).map(s=>`<span><i style="background:${rsCol(s)}"></i>${esc(s)}</span>`).join('')}<span>✓ 當天已報工</span><span>斜線＝預排（待報價確認）</span></div></div>`;
 }
 function makeDemoRs(){
