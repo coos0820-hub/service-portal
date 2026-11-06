@@ -47,6 +47,14 @@ header .btn.pri{background:var(--acc);border-color:var(--acc)}
 .st.alert .v{color:var(--bad)}
 .tile .foot{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:4px}
 .tile .foot .hint{margin-right:auto}
+.homebar{margin-bottom:10px}
+.tiles.editing .tile{position:relative;cursor:grab;outline:1px dashed var(--line)}
+.tiles.editing .tile.dragging{opacity:.4}
+.tiles.editing .tile.over{outline:2px dashed #1f6feb;outline-offset:2px}
+.tile .tx{position:absolute;top:6px;right:6px;border:0;background:#f1f3f5;border-radius:50%;width:26px;height:26px;cursor:pointer;color:#666}
+.tile .tx:hover{background:#fde2e2;color:#c62828}
+.tile .grip{color:#9aa4b0;font-size:14px;letter-spacing:-2px}
+.tile.addt{border-top-color:#9aa4b0;border-style:dashed;background:#fafbfc}
 .msg{font-size:12px;color:var(--sub);background:#f6f8fb;border-radius:6px;padding:8px}
 .msg.err{color:var(--bad);background:#fdf0f0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -83,7 +91,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.10.1 (2026-11-06)';
+const VER='v1.11 (2026-11-06)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -92,24 +100,30 @@ const BUILTIN=[
  {k:'fs',      name:'Field Service',code:'30', color:'var(--c-fs)',      match:/field|^\d*_?fs\b|排程/i, desc:'訊息單開立、排程、完工報告與結案'},
  {k:'cq',      name:'客戶問題點',   code:'40', color:'var(--c-cq)',      match:/客戶問題|客訴|issue/i,   desc:'客訴受理、調查、對策與結案，月報中英切換'},
  {k:'rs',      name:'Repair Shop',  code:'50', color:'#8e44ad',          match:/repair|維修排程|^\d*_?rs\b/i, desc:'工業／半導體維修排程、站別進度與看板'}];
-const KINDS=[['report','報工'],['teardown','三地共用'],['fs','Field Service'],['cq','客戶問題點'],['rs','Repair Shop'],['link','一般連結（不讀資料）']];
 let SYS=BUILTIN.map(x=>({...x,kind:x.k}));
 const reEsc=t=>String(t).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 /* 共用設定 systems → 首頁卡片清單（沒有就用內建清單） */
+/* 首頁卡片：每個人在首頁自己排序、隱藏、新增連結（存在這台電腦的瀏覽器） */
+const HOME_KEY='svc_portal_home';
+const getHome=()=>Object.assign({order:[],hidden:[],custom:[]},ls.get(HOME_KEY)||{});
+const setHome=h=>ls.set(HOME_KEY,h);
+const SYSB=BUILTIN.map(x=>({...x,kind:x.k}));   // 內建系統：讀資料夾、資料、部署檢查都用這份（不受首頁隱藏影響）
+let SYSALL=[...SYSB];
 function buildSys(){
-  const list=S.set&&Array.isArray(S.set.systems)&&S.set.systems.length?S.set.systems:BUILTIN.map(x=>({k:x.k,kind:x.k}));
-  SYS=list.filter(x=>x&&x.k&&!x.hidden).map(x=>{const b=BUILTIN.find(y=>y.k===x.k)||BUILTIN.find(y=>y.k===x.kind)||{};const kind=x.kind||b.k||'link';
-    return {k:x.k,kind,name:x.name||b.name||x.k,code:x.code??b.code??'',color:x.color||b.color||'#55616f',desc:x.desc??b.desc??'',match:x.k===b.k&&b.match?b.match:new RegExp(reEsc(x.name||x.k),'i')}});
+  const h=getHome();
+  const custom=(h.custom||[]).filter(c=>c&&c.k).map(c=>({k:c.k,kind:'link',name:c.name||'連結',code:'',color:c.color||'#55616f',desc:c.desc||'',link:c.link||'',match:/$^/}));
+  SYSALL=[...SYSB,...custom];
+  const ord=k=>{const i=(h.order||[]).indexOf(k);return i<0?1000+SYSALL.findIndex(x=>x.k===k):i};
+  SYS=SYSALL.filter(x=>!(h.hidden||[]).includes(x.k)).sort((a,b)=>ord(a.k)-ord(b.k));
 }
-const sysList=()=>S.set&&Array.isArray(S.set.systems)&&S.set.systems.length?S.set.systems:BUILTIN.map(b=>({k:b.k,kind:b.k,name:b.name,code:b.code,color:b.color.startsWith('var(')?({report:'#1565C0',teardown:'#6D4C41',fs:'#2E7D32',cq:'#C62828'}[b.k]||'#55616f'):b.color,desc:b.desc,hidden:false}));
 const AUX=[{k:'portal',name:'入口網站',code:'00',match:/入口|portal/i},{k:'settings',name:'共用設定',code:'01',match:/共用設定|setting/i}];
 const DEF_FAMILIES=["R5","Mink","COBRA","Seco","Dolphin","Panda","Puma","Samos","Fossa","Huckepack","其他品牌"];
 const DEF_SET=()=>({app:'shared-settings',ver:1,families:[...DEF_FAMILIES],
   formats:{wo:{example:'',pattern:'',note:''},fsn:{example:'',pattern:'',note:''}},
-  folders:{},links:{},systems:[],stations:[],shifts:{},breaks:{},rsEngineers:[],salesOut:[],salesIn:[],adminHash:'',updatedAt:'',updatedBy:''});
+  folders:{},links:{},stations:[],shifts:{},breaks:{},rsEngineers:[],salesOut:[],salesIn:[],adminHash:'',updatedAt:'',updatedBy:''});
 /* 過渡模式（NAS 上線前）：各系統個別指定資料夾，開啟按鈕連到 GitHub Pages */
 const MODE=()=>localStorage.getItem('svc_portal_mode')==='each'?'each':'root';
-const EACH_KEYS=()=>['settings',...SYS.map(s=>s.k)];
+const EACH_KEYS=()=>['settings',...SYSB.map(s=>s.k)];
 const DEF_LINKS={report:'https://coos0820-hub.github.io/Service-time-reporting/',fs:'https://coos0820-hub.github.io/Field-service/',cq:'https://coos0820-hub.github.io/Customer-issue/',teardown:'',rs:'https://coos0820-hub.github.io/Repair-shop/'};
 
 /* ---------- 小工具 ---------- */
@@ -184,8 +198,8 @@ async function grantRoot(){
 async function mapDirs(){
   const dirs=[];for await(const [n,h] of S.root.entries())if(h.kind==='directory'&&!n.startsWith('.')&&!n.startsWith('#'))dirs.push([n,h]);
   const fixed=(S.set&&S.set.folders)||{};const out={};const used=new Set();
-  for(const s of [...AUX,...SYS]){const want=fixed[s.k];const hit=want?dirs.find(([n])=>n===want):null;if(hit){out[s.k]=hit;used.add(hit[0])}}
-  for(const s of [...AUX,...SYS]){if(out[s.k])continue;const hit=dirs.find(([n])=>!used.has(n)&&s.match.test(n));if(hit){out[s.k]=hit;used.add(hit[0])}}
+  for(const s of [...AUX,...SYSB]){const want=fixed[s.k];const hit=want?dirs.find(([n])=>n===want):null;if(hit){out[s.k]=hit;used.add(hit[0])}}
+  for(const s of [...AUX,...SYSB]){if(out[s.k])continue;const hit=dirs.find(([n])=>!used.has(n)&&s.match.test(n));if(hit){out[s.k]=hit;used.add(hit[0])}}
   S.allDirs=dirs.map(d=>d[0]).sort();
   S.dirs={};for(const k in out)S.dirs[k]={name:out[k][0],h:out[k][1]};
   const cache={};for(const k in S.dirs)cache[k]=S.dirs[k].name;ls.set('svc_portal_dirs',cache);
@@ -235,7 +249,7 @@ async function loadSettings0(){
 function normSet(j){const d=DEF_SET();j=Object.assign(d,j);j.formats=Object.assign(DEF_SET().formats,j.formats||{});
   for(const k of ['wo','fsn'])j.formats[k]=Object.assign({example:'',pattern:'',note:''},j.formats[k]||{});
   if(!Array.isArray(j.families))j.families=[...DEF_FAMILIES];j.folders=j.folders||{};j.links=j.links||{};
-  for(const k of ['systems','stations','rsEngineers','salesOut','salesIn'])if(!Array.isArray(j[k]))j[k]=[];for(const k of ['shifts','breaks'])if(!j[k]||typeof j[k]!=='object')j[k]={};return j}
+  for(const k of ['stations','rsEngineers','salesOut','salesIn'])if(!Array.isArray(j[k]))j[k]=[];for(const k of ['shifts','breaks'])if(!j[k]||typeof j[k]!=='object')j[k]={};return j}
 
 async function loadAll(){
   if(S.loading||!ready())return;S.loading=true;setStat('讀取中…');
@@ -251,7 +265,7 @@ async function loadAll(){
       rs:async d=>findFile(d,x=>x&&x.app==='repair-shop-kiosk',1,'rs_kiosk.json'),
       teardown:async d=>{let n=0;for await(const [nm,h] of d.entries())if(h.kind==='directory'&&!/^[.#]/.test(nm))n++;return {name:'(資料夾)',data:{folders:n},mod:0}}
     };
-    await Promise.all(SYS.map(async s=>{const d=S.dirs[s.k];if(!d||!jobs[s.kind])return;
+    await Promise.all(SYSB.map(async s=>{const d=S.dirs[s.k];if(!d||!jobs[s.kind])return;
       try{S.info[s.k]={index:await hasIndex(d.h)};const r=await jobs[s.kind](d.h);if(r)S.data[s.k]=r;else S.errs[s.k]='找不到資料檔'}
       catch(e){S.errs[s.k]=e.name==='NotAllowedError'?'沒有讀取權限':('讀取失敗：'+e.message)}}));
     S.loadedAt=Date.now();setStat();
@@ -267,7 +281,7 @@ function setStat(t,warn){const el=$('#rstat');
 
 /* ---------- 摘要 ---------- */
 function summarize(key){
-  const r=S.data[key];if(!r)return null;const d=r.data,m=ym(),t=today();const k=(SYS.find(x=>x.k===key)||{}).kind||key;
+  const r=S.data[key];if(!r)return null;const d=r.data,m=ym(),t=today();const k=(SYSB.find(x=>x.k===key)||{}).kind||key;
   if(k==='rs'){const c=d.counts||{};const n=x=>c[x]||0;const td=(d.days||{})[t]||[];
     return {stats:[['待拆解',n('待拆解')],['待維修',n('待維修'),n('待維修')>0],['維修中',n('維修中')],['待料／HOLD',n('待料')+n('HOLD'),(n('待料')+n('HOLD'))>0],['今日排程',td.length]],last:toTs(d.at)||r.mod}}
   if(k==='report'){const live=d.records.filter(x=>!x.deleted);const mon=live.filter(x=>String(x.date||'').startsWith(m));
@@ -292,6 +306,7 @@ function summarize(key){
 /* ---------- 畫面 ---------- */
 const TABS=[['home','首頁'],['kiosk','📺 看板'],['settings','⚙ 共用設定'],['check','部署檢查']];
 function render(){
+  if(!S._sysBuilt){buildSys();S._sysBuilt=1}
   $('#ver').textContent=VER;setStat(S.loading?'讀取中…':'');
   $('#bRoot').textContent=MODE()==='each'?'改用 NAS 根目錄':S.root?(S.perm==='granted'?'變更根目錄':'授權讀取'):'連結共用根目錄';
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('');
@@ -299,7 +314,7 @@ function render(){
   if(S.tab==='check'&&!S.check&&ready())runCheck();
 }
 const OLD_LINKS=['https://coos0820-hub.github.io/service-report/','https://coos0820-hub.github.io/field-service/'];
-function linkFor(k){const sy=SYS.find(x=>x.k===k);if(sy&&sy.kind==='link')return ((S.set&&S.set.links)||{})[k]||'';if(MODE()==='each'){const u=S.set&&S.set.links&&S.set.links[k];return (u&&!OLD_LINKS.includes(u))?u:(DEF_LINKS[k]||'')}const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
+function linkFor(k){const sy=SYSALL.find(x=>x.k===k);if(sy&&sy.kind==='link')return sy.link||'';if(MODE()==='each'){const u=S.set&&S.set.links&&S.set.links[k];return (u&&!OLD_LINKS.includes(u))?u:(DEF_LINKS[k]||'')}const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
 function banner(){
   if(!FSA)return `<div class="banner">這個瀏覽器不支援讀取共用資料夾，請用電腦版 Chrome 或 Edge 開啟。各系統入口仍可使用。</div>`;
   if(MODE()==='each')return `<div class="banner info">過渡模式（NAS 上線前）：各系統個別指定資料夾，「開啟」連到 GitHub Pages。NAS 上線後按右上角「改用 NAS 根目錄」切換，並把共用設定.json <b>搬移</b>到 NAS。</div>`+
@@ -310,7 +325,16 @@ function banner(){
   return '';
 }
 function vHome(){
-  return banner()+`<div class="tiles">${SYS.map(s=>{
+  const E=S.homeEdit,h=getHome();
+  const hiddenB=SYSALL.filter(x=>(h.hidden||[]).includes(x.k));
+  const bar=`<div class="row homebar"><span class="hint" style="margin-right:auto">${E?'拖曳卡片調整順序，按 ✕ 從首頁移除；這些設定只存在這台電腦的瀏覽器。':''}</span>
+    ${E?'<button class="btn sm" data-act="hreset">恢復預設</button> <button class="btn sm pri" data-act="hedit">完成</button>':'<button class="btn sm" data-act="hedit">✎ 編輯首頁</button>'}</div>`;
+  const addCard=E?`<div class="tile addt"><div class="tt"><b>＋ 新增</b></div>
+     ${hiddenB.length?`<div class="fld"><span>加回已移除的系統</span><div class="row">${hiddenB.map(x=>`<button class="btn sm" data-act="hshow" data-k="${esc(x.k)}">${esc(x.name)}</button>`).join('')}</div></div>`:''}
+     <div class="fld"><span>新增連結（例如 SharePoint 頁面、Excel、外部網站）</span>
+      <input type="text" id="hName" placeholder="名稱" style="margin-bottom:6px"><input type="text" id="hLink" placeholder="https://…" style="margin-bottom:6px">
+      <input type="text" id="hDesc" placeholder="說明（選填）" style="margin-bottom:6px"><div class="row"><input type="color" id="hColor" value="#55616f" title="顏色"><button class="btn sm pri" data-act="hadd">新增</button></div></div></div>`:'';
+  return banner()+bar+`<div class="tiles${E?' editing':''}" id="tiles">${SYS.map(s=>{
     const href=linkFor(s.k),sm=summarize(s.k),err=S.errs[s.k],info=S.info[s.k]||{},found=!!S.dirs[s.k];
     let body='';
     if(s.kind==='link')body='';
@@ -321,9 +345,9 @@ function vHome(){
     let lastT=sm&&sm.last?'更新 '+fDT(sm.last):(found?'資料夾：'+esc(S.dirs[s.k].name):'');
     if(MODE()==='each'&&s.kind!=='link')lastT+=` <button class="btn sm" data-act="pickeach" data-k="${s.k}" title="${found?'目前：'+esc(S.dirs[s.k].name):''}">${S.each[s.k]?'更換資料夾':'指定資料夾'}</button>${S.each[s.k]?` <button class="btn sm" data-act="cleareach" data-k="${s.k}">清除</button>`:''}`;
     const idxWarn=found&&info.index===false&&MODE()!=='each'?' <span class="wrnc">（資料夾內沒有 index.html）</span>':'';
-    return `<div class="tile" style="--c:${s.color}"><div class="tt"><b>${esc(s.name)}</b><span>${s.code}</span></div>
+    return `<div class="tile" style="--c:${s.color}" data-k="${esc(s.k)}" ${E?'draggable="true"':''}>${E?`<button class="tx" data-act="hhide" data-k="${esc(s.k)}" title="從首頁移除">✕</button>`:''}<div class="tt">${E?'<span class="grip">⋮⋮</span>':''}<b>${esc(s.name)}</b><span>${s.code}</span></div>
       <div class="desc">${esc(s.desc)}</div>${body}
-      <div class="foot"><span class="hint">${lastT}${idxWarn}</span>${href?`<a class="btn pri" href="${href}" target="_blank" rel="noopener">開啟</a>`:`<span class="btn dis">開啟</span>`}</div></div>`}).join('')}</div>
+      <div class="foot"><span class="hint">${lastT}${idxWarn}</span>${href?`<a class="btn pri" href="${href}" target="_blank" rel="noopener">開啟</a>`:`<span class="btn dis">開啟</span>`}</div></div>`}).join('')}${addCard}</div>
   <p class="hint" style="margin-top:14px">入口網站只讀取資料，不會修改各系統的資料。要新增或修改紀錄，請按「開啟」進入該系統。</p>`;
 }
 
@@ -427,7 +451,7 @@ function vSettings(){
       <button class="btn pri" data-act="${first?'setpw':'unlock'}">${first?'設定並進入':'解鎖'}</button></div>`}
   const st=S.set,fam=st.families;
   const others=familySources();
-  const folderRows=[...AUX,...SYS].map(s=>`<tr><td>${s.code} ${esc(s.name)}</td><td><select data-folder="${s.k}"><option value="">（自動比對）</option>${(S.allDirs||[]).map(n=>`<option ${st.folders[s.k]===n?'selected':''}>${esc(n)}</option>`).join('')}</select></td><td class="hint">${S.dirs[s.k]?'目前：'+esc(S.dirs[s.k].name):'<span class="wrnc">未找到</span>'}</td></tr>`).join('');
+  const folderRows=[...AUX,...SYSB].map(s=>`<tr><td>${s.code} ${esc(s.name)}</td><td><select data-folder="${s.k}"><option value="">（自動比對）</option>${(S.allDirs||[]).map(n=>`<option ${st.folders[s.k]===n?'selected':''}>${esc(n)}</option>`).join('')}</select></td><td class="hint">${S.dirs[s.k]?'目前：'+esc(S.dirs[s.k].name):'<span class="wrnc">未找到</span>'}</td></tr>`).join('');
   return `${S.setExists?'':'<div class="banner">共用設定檔還沒建立，下面是預設值；按「儲存」後會在共用設定資料夾建立「'+SETFILE+'」。</div>'}
   <p class="hint" style="margin:0 0 8px">共用設定檔位置：「${esc(S.dirs.settings.name)}」資料夾的 ${SETFILE}${MODE()==='each'?'（過渡位置，NAS 上線後請搬移到 NAS 共用設定資料夾）':'（NAS）'}</p>
   <div class="row" style="margin-bottom:14px"><button class="btn ok" data-act="save">儲存共用設定</button><button class="btn" data-act="reload">放棄修改</button><button class="btn" data-act="lock">上鎖</button>
@@ -439,38 +463,13 @@ function vSettings(){
     <p class="hint">客戶問題點的「從報工 JSON 匯入機種」可以直接選這個共用設定檔匯入。其他系統改成自動讀取共用設定，會在下一步調整。</p></div>
    <div>${fmtBlock('wo','WO 工單號格式')}${fmtBlock('fsn','FSN 格式')}</div>
   </div>
-  ${vSysCard(st)}
   ${vSharedCard(st)}
   ${MODE()==='each'?`<div class="card"><h3>過渡期網址</h3><p class="hint">NAS 上線前，首頁「開啟」按鈕連到這些網址（各系統的 GitHub Pages）。NAS 上線後改用 NAS 上的檔案，這裡就不再使用。</p>
-   <table class="tbl"><tbody>${SYS.filter(s=>s.kind!=='link').map(s=>`<tr><td style="width:160px">${s.code} ${esc(s.name)}</td><td><input type="text" data-link="${s.k}" value="${esc(((st.links||{})[s.k]&&!OLD_LINKS.includes(st.links[s.k]))?st.links[s.k]:(DEF_LINKS[s.k]||''))}" placeholder="https://…（留白＝沒有開啟按鈕）"></td></tr>`).join('')}</tbody></table></div>`:''}
+   <table class="tbl"><tbody>${SYSB.map(s=>`<tr><td style="width:160px">${s.code} ${esc(s.name)}</td><td><input type="text" data-link="${s.k}" value="${esc(((st.links||{})[s.k]&&!OLD_LINKS.includes(st.links[s.k]))?st.links[s.k]:(DEF_LINKS[s.k]||''))}" placeholder="https://…（留白＝沒有開啟按鈕）"></td></tr>`).join('')}</tbody></table></div>`:''}
   <div class="card" style="${MODE()==='each'?'display:none':''}"><h3>資料夾對應</h3><p class="hint">IT 開的資料夾名稱和預設比對不同時，在這裡指定。指定後所有電腦都會照這個對應。</p>
    <table class="tbl"><thead><tr><th>系統</th><th>NAS 資料夾</th><th></th></tr></thead><tbody>${folderRows}</tbody></table></div>
   <div class="card"><h3>管理密碼</h3><div class="row"><input type="password" id="npw1" placeholder="新密碼" style="max-width:200px"><input type="password" id="npw2" placeholder="再輸入一次" style="max-width:200px"><button class="btn sm" data-act="chpw">變更（儲存後生效）</button></div>
    <p class="hint">密碼只能防止誤改，真正的保護是 NAS 帳號權限：共用設定資料夾只有管理者帳號能寫入。</p></div>`;
-}
-/* ---------- 系統清單（首頁卡片，可增刪排序） ---------- */
-function vSysCard(st){
-  const L=sysList();
-  return `<div class="card"><h3>系統清單（首頁卡片）</h3>
-   <p class="hint">可以新增、隱藏、刪除、調整順序。「類型」決定入口怎麼讀資料：內建類型會顯示即時數字；「一般連結」只放開啟按鈕（例如外部網站、Excel、SharePoint 頁面）。</p>
-   <div style="overflow:auto"><table class="tbl" id="sysTbl"><thead><tr><th>顯示</th><th>代碼</th><th>名稱</th><th>類型</th><th>顏色</th><th>說明</th><th>一般連結網址</th><th></th></tr></thead><tbody>
-   ${L.map((x,i)=>`<tr data-sys="${i}" data-k="${esc(x.k)}"><td><input type="checkbox" data-sf="show" ${x.hidden?'':'checked'}></td>
-     <td><input type="text" data-sf="code" value="${esc(x.code||'')}" style="width:52px"></td>
-     <td><input type="text" data-sf="name" value="${esc(x.name||'')}" style="min-width:120px"></td>
-     <td><select data-sf="kind">${KINDS.map(([v,l])=>`<option value="${v}" ${(x.kind||x.k)===v?'selected':''} ${v!=='link'&&L.some((y,j)=>j!==i&&(y.kind||y.k)===v)?'disabled':''}>${l}</option>`).join('')}</select></td>
-     <td><input type="color" data-sf="color" value="${esc(/^#[0-9a-f]{6}$/i.test(x.color||'')?x.color:'#55616f')}"></td>
-     <td><input type="text" data-sf="desc" value="${esc(x.desc||'')}" style="min-width:200px"></td>
-     <td><input type="text" data-sf="link" value="${esc((st.links||{})[x.k]||'')}" placeholder="${(x.kind||x.k)==='link'?'https://…':'（內建類型用上方網址設定）'}" ${(x.kind||x.k)==='link'?'':'disabled'} style="min-width:180px"></td>
-     <td style="white-space:nowrap"><button class="btn sm" data-act="sysup" data-i="${i}" ${i?'':'disabled'}>↑</button><button class="btn sm" data-act="sysdn" data-i="${i}" ${i<L.length-1?'':'disabled'}>↓</button><button class="btn sm" data-act="sysdel" data-i="${i}">刪除</button></td></tr>`).join('')}
-   </tbody></table></div>
-   <div class="row" style="margin-top:8px"><button class="btn sm" data-act="sysadd">＋ 新增系統</button><span class="hint">每種內建類型只能用一次；刪除只是從首頁拿掉卡片，不會動到該系統的資料。</span></div></div>`;
-}
-function readSys(){
-  const rows=[...document.querySelectorAll('#sysTbl tr[data-sys]')];if(!rows.length)return;
-  const st=S.set;st.links=st.links||{};
-  st.systems=rows.map(tr=>{const g=f=>tr.querySelector(`[data-sf="${f}"]`);const k=tr.dataset.k;const kind=g('kind').value;
-    if(kind==='link')st.links[k]=g('link').value.trim();
-    return {k,kind,name:g('name').value.trim()||k,code:g('code').value.trim(),color:g('color').value,desc:g('desc').value.trim(),hidden:!g('show').checked}});
 }
 /* ---------- 跨系統共用清單（報工、Repair Shop 讀取） ---------- */
 const tline=o=>Object.entries(o||{}).map(([n,v])=>n+'='+v[0]+'-'+v[1]).join('\n');
@@ -503,7 +502,7 @@ function familySources(){
   return o;
 }
 function readForm(){
-  readSys();const ok=readShared();
+  const ok=readShared();
   const st=S.set;const fa=$('#fam');if(fa)st.families=[...new Set(fa.value.split('\n').map(x=>x.trim()).filter(Boolean))];
   document.querySelectorAll('[data-f]').forEach(el=>{const [k,f]=el.dataset.f.split('.');st.formats[k][f]=el.value.trim()});
   document.querySelectorAll('[data-link]').forEach(el=>{st.links=st.links||{};st.links[el.dataset.link]=el.value.trim()});
@@ -538,16 +537,15 @@ async function runCheck(){
   if(MODE()==='each')rows.push(['連結方式','warn','過渡模式：個別指定資料夾（NAS 上線後請切換到根目錄）']);
   else rows.push(['共用根目錄',S.root?'ok':'bad',S.root?S.root.name:'未連結']);
   rows.push(['共用設定檔',S.setExists?'ok':'warn',S.setExists?SETFILE:'尚未建立（到「共用設定」儲存一次）']);
-  for(const s of [...AUX,...SYS]){const d=S.dirs[s.k];
+  for(const s of [...AUX,...SYSB]){const d=S.dirs[s.k];
     if(MODE()==='each'&&s.k==='portal')continue;
-    if(SYS.some(x=>x.k===s.k&&x.kind==='link'))continue;
     if(!d){rows.push([s.code+' '+s.name,MODE()==='each'?'warn':'bad',MODE()==='each'?'還沒指定資料夾：到「首頁」這張卡片按「指定資料夾」':'找不到資料夾']);continue}
     if(s.k==='settings'){rows.push([s.code+' '+s.name,'ok',d.name]);continue}
     const sc=await scanExternal(d.h);
     let lv='ok',msg=d.name;
     if(!sc.ok){lv=s.k==='portal'||MODE()==='each'?'warn':'bad';msg+=MODE()==='each'?'：資料夾內沒有 index.html（過渡期從 GitHub Pages 開啟，不影響）':'：沒有 index.html'}
     else if(sc.ext.length){lv='warn';msg+='：網頁會連外部網址，報工電腦和拆解／組裝電腦斷網時會失效 → '+sc.ext.map(u=>'<code>'+esc(u.replace(/^https?:\/\//,'').slice(0,60))+'</code>').join(' ')}
-    if(SYS.some(x=>x.k===s.k)&&sc.ok){const df=S.data[s.k];msg+=df?'；資料：'+esc(df.name):(s.k==='teardown'?'':s.k==='rs'?'；<span class="badc">還沒有 rs_kiosk.json</span>（Repair Shop 改用資料夾模式、排過一次程後產生）':'；<span class="badc">找不到資料檔</span>')}
+    if(SYSB.some(x=>x.k===s.k)&&sc.ok){const df=S.data[s.k];msg+=df?'；資料：'+esc(df.name):(s.k==='teardown'?'':s.k==='rs'?'；<span class="badc">還沒有 rs_kiosk.json</span>（Repair Shop 改用資料夾模式、排過一次程後產生）':'；<span class="badc">找不到資料檔</span>')}
     rows.push([s.code+' '+s.name,lv,msg]);
   }
   S.check.rows=rows;if(S.tab==='check')render();
@@ -560,6 +558,15 @@ function vCheck(){
    ${S.check.rows.map(([a,l,m])=>`<tr><td>${ic[l]}</td><td>${esc(a)}</td><td>${l==='ok'||m.includes('<')?m:esc(m)}</td></tr>`).join('')}</tbody></table>
    <div class="row" style="margin-top:10px"><button class="btn sm" data-act="recheck">重新檢查</button><span class="hint">每台電腦第一次使用時跑一次，確認資料夾、網頁和資料檔都找得到。</span></div></div>`;
 }
+
+/* ---------- 首頁拖曳排序 ---------- */
+let dragK=null;
+document.addEventListener('dragstart',e=>{const t=e.target.closest&&e.target.closest('#tiles.editing .tile[data-k]');if(!t)return;dragK=t.dataset.k;t.classList.add('dragging');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',dragK)}catch(x){}});
+document.addEventListener('dragend',()=>{dragK=null;document.querySelectorAll('.tile.dragging,.tile.over').forEach(x=>x.classList.remove('dragging','over'))});
+document.addEventListener('dragover',e=>{if(!dragK)return;const t=e.target.closest('#tiles .tile[data-k]');if(!t)return;e.preventDefault();document.querySelectorAll('.tile.over').forEach(x=>x!==t&&x.classList.remove('over'));t.classList.add('over')});
+document.addEventListener('drop',e=>{if(!dragK)return;const t=e.target.closest('#tiles .tile[data-k]');if(!t)return;e.preventDefault();
+  const ks=SYS.map(x=>x.k).filter(k=>k!==dragK);const i=ks.indexOf(t.dataset.k);const r=t.getBoundingClientRect();const after=e.clientX>r.left+r.width/2;
+  ks.splice(i+(after?1:0),0,dragK);const h=getHome();h.order=ks;setHome(h);dragK=null;buildSys();render()});
 
 /* ---------- 事件 ---------- */
 document.addEventListener('click',async e=>{
@@ -582,13 +589,15 @@ document.addEventListener('click',async e=>{
   if(a==='unlock'){if(await sha($('#pw1').value)===S.set.adminHash){S.unlocked=true;render()}else toast('密碼錯誤',true);return}
   if(a==='lock'){readForm();S.unlocked=false;render();return}
   if(a==='reload'){if(S.dirty&&!confirm('放棄尚未儲存的修改？'))return;S.dirty=false;await loadAll();return}
+  if(a==='hedit'){S.homeEdit=!S.homeEdit;render();return}
+  if(a==='hreset'){if(!confirm('恢復預設的卡片順序？自己新增的連結也會刪除。'))return;setHome({order:[],hidden:[],custom:[]});buildSys();render();return}
+  if(a==='hhide'){const h=getHome(),k=t.dataset.k,c=(h.custom||[]).find(x=>x.k===k);
+    if(c){if(!confirm('刪除連結「'+c.name+'」？'))return;h.custom=h.custom.filter(x=>x.k!==k)}else h.hidden=[...new Set([...(h.hidden||[]),k])];
+    setHome(h);buildSys();render();return}
+  if(a==='hshow'){const h=getHome();h.hidden=(h.hidden||[]).filter(x=>x!==t.dataset.k);setHome(h);buildSys();render();return}
+  if(a==='hadd'){const name=$('#hName').value.trim(),link=$('#hLink').value.trim();if(!name){toast('請填名稱',true);return}if(!/^(https?:|file:|\.\.?\/)/i.test(link)){toast('網址要以 https:// 開頭',true);return}
+    const h=getHome();const k='x'+Date.now().toString(36);h.custom=[...(h.custom||[]),{k,name,link,desc:$('#hDesc').value.trim(),color:$('#hColor').value}];h.order=[...SYS.map(x=>x.k),k];setHome(h);buildSys();render();toast('已新增');return}
   if(a==='save')return saveSet();
-  if(['sysadd','sysup','sysdn','sysdel'].includes(a)){readForm();if(!S.set.systems.length)S.set.systems=sysList();const L=S.set.systems,i=+t.dataset.i;
-    if(a==='sysadd')L.push({k:'x'+Date.now().toString(36),kind:'link',name:'新系統',code:'',color:'#55616f',desc:'',hidden:false});
-    if(a==='sysup'&&i>0)[L[i-1],L[i]]=[L[i],L[i-1]];
-    if(a==='sysdn'&&i<L.length-1)[L[i+1],L[i]]=[L[i],L[i+1]];
-    if(a==='sysdel'){if(!confirm('從首頁移除「'+L[i].name+'」？（不會刪除該系統的資料，之後可再新增）'))return;L.splice(i,1)}
-    S.dirty=true;buildSys();render();return}
   if(a==='fromrep'){readForm();const m=repMaster();const f=t.dataset.rf;if(m&&m[f]){S.set[f]=JSON.parse(JSON.stringify(m[f]));S.dirty=true;render()}return}
   if(a==='genpat'){readForm();const k=t.dataset.k;const f=S.set.formats[k];if(!f.example){toast('先填範例',true);return}f.pattern=exampleToPattern(f.example);S.dirty=true;render();return}
   if(a==='famadd'){readForm();const o=familySources().find(x=>x.src===t.dataset.src);if(o){o.list.forEach(x=>{if(!S.set.families.includes(x))S.set.families.push(x)});S.dirty=true;render()}return}
@@ -609,8 +618,7 @@ document.addEventListener('change',e=>{
     ls.set('svc_portal_kiosk_'+k,c);render();return}
   if(kl==='s1'||kl==='s2'){const L=klaunch();const o=korder();L.s1=o[0];L.s2=o[1];L[kl]=e.target.value;ls.set('svc_portal_kiosk_launch',L);render();return}
   if(kl){const L=klaunch();L[kl]=['w','delay','port'].includes(kl)?(parseInt(e.target.value,10)||L[kl]):e.target.value;ls.set('svc_portal_kiosk_launch',L);render();return}
-  if(e.target.dataset.sf==='kind'){readForm();buildSys();render();return}
-  if(e.target.dataset.folder||e.target.dataset.sf){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}});
+  if(e.target.dataset.folder){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw1'||e.target.id==='pw2')){const b=document.querySelector('[data-act=unlock],[data-act=setpw]');if(b)b.click()}});
 window.addEventListener('beforeunload',e=>{if(S.dirty&&S.unlocked){e.preventDefault();e.returnValue=''}});
 window.addEventListener('focus',()=>{if(ready()&&!S.needGrant.length&&!S.loading&&S.tab==='home'&&Date.now()-(S.loadedAt||0)>60000)loadAll()});
