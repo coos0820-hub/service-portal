@@ -91,7 +91,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.11 (2026-11-06)';
+const VER='v1.12 (2026-11-10)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -182,7 +182,7 @@ async function linkRoot(){
 async function restoreRoot(){
   if(MODE()==='each'){
     for(const k of EACH_KEYS()){const h=await idb.get('each_'+k);if(h)S.each[k]=h}
-    for(const k in S.each){let p='prompt';try{p=await S.each[k].queryPermission({mode:'read'})}catch(e){}if(p!=='granted')S.needGrant.push(k)}
+    for(const k in S.each){let p='prompt';try{p=await withTimeout(S.each[k].queryPermission({mode:'read'}),3000)}catch(e){if(e.name==='TimeoutError')p='granted'}if(p!=='granted')S.needGrant.push(k)}
     if(Object.keys(S.each).length)await loadAll();else render();return}
   const h=await idb.get('root');if(!h)return;S.root=h;
   try{S.perm=await h.queryPermission({mode:'read'})}catch(e){S.perm='prompt'}
@@ -233,6 +233,9 @@ async function fsV2(d){
       try{const f=await h.getFile();const j=JSON.parse((await f.text()).replace(/^\uFEFF/,''));if(j&&j.fsn&&!j.placeholder){cases[j.fsn]=j;mod=Math.max(mod,f.lastModified)}}catch(e){}}}catch(e){}
   return {name:'settings.json＋cases/'+y,data:{cases,settings:st,v2:true},mod};
 }
+/* 逾時保護：連不到的資料夾（例如 Wi-Fi 下的內網磁碟）不會卡住整個入口 */
+const withTimeout=(p,ms,msg)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(Object.assign(new Error(msg||'逾時'),{name:'TimeoutError'})),ms))]);
+const TMSG='連不到這個資料夾（內網資料夾用 Wi-Fi 無法讀取，或 OneDrive 尚未同步）';
 async function hasIndex(dir){try{await dir.getFileHandle('index.html');return true}catch(e){return false}}
 
 /* ---------- 讀取 ---------- */
@@ -255,7 +258,7 @@ async function loadAll(){
   if(S.loading||!ready())return;S.loading=true;setStat('讀取中…');
   S.data={};S.info={};S.errs={};
   try{
-    if(MODE()==='each'){S.dirs={};for(const k in S.each)if(!S.needGrant.includes(k))S.dirs[k]={name:S.each[k].name,h:S.each[k]};await loadSettings()}
+    if(MODE()==='each'){S.dirs={};for(const k in S.each)if(!S.needGrant.includes(k))S.dirs[k]={name:S.each[k].name,h:S.each[k]};render();try{await withTimeout(loadSettings(),10000,TMSG)}catch(e){S.set=S.set||DEF_SET();buildSys();S.errs.settings=e.message}}
     else{await mapDirs();await loadSettings();
     if(S.set&&Object.keys(S.set.folders||{}).length)await mapDirs();} // 共用設定有指定資料夾時重新對應
     const jobs={
@@ -266,8 +269,8 @@ async function loadAll(){
       teardown:async d=>{let n=0;for await(const [nm,h] of d.entries())if(h.kind==='directory'&&!/^[.#]/.test(nm))n++;return {name:'(資料夾)',data:{folders:n},mod:0}}
     };
     await Promise.all(SYSB.map(async s=>{const d=S.dirs[s.k];if(!d||!jobs[s.kind])return;
-      try{S.info[s.k]={index:await hasIndex(d.h)};const r=await jobs[s.kind](d.h);if(r)S.data[s.k]=r;else S.errs[s.k]='找不到資料檔'}
-      catch(e){S.errs[s.k]=e.name==='NotAllowedError'?'沒有讀取權限':('讀取失敗：'+e.message)}}));
+      try{await withTimeout((async()=>{S.info[s.k]={index:await hasIndex(d.h)};const r=await jobs[s.kind](d.h);if(r)S.data[s.k]=r;else S.errs[s.k]='找不到資料檔'})(),15000,TMSG)}
+      catch(e){S.errs[s.k]=e.name==='NotAllowedError'?'沒有讀取權限':e.name==='TimeoutError'?e.message:('讀取失敗：'+e.message)}}));
     S.loadedAt=Date.now();setStat();
   }catch(e){setStat('讀取失敗',true);toast('讀取失敗：'+e.message,true)}
   S.loading=false;S.check=null;render();
