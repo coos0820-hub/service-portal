@@ -91,7 +91,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.12 (2026-11-10)';
+const VER='v1.13 (2026-11-11)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -122,6 +122,8 @@ const DEF_SET=()=>({app:'shared-settings',ver:1,families:[...DEF_FAMILIES],
   formats:{wo:{example:'',pattern:'',note:''},fsn:{example:'',pattern:'',note:''}},
   folders:{},links:{},stations:[],shifts:{},breaks:{},rsEngineers:[],salesOut:[],salesIn:[],adminHash:'',updatedAt:'',updatedBy:''});
 /* 過渡模式（NAS 上線前）：各系統個別指定資料夾，開啟按鈕連到 GitHub Pages */
+/* 從 GitHub Pages 開啟時，各系統網頁不在資料夾裡 → 開啟按鈕一律連 GitHub Pages */
+const WEBLINK=()=>/\.github\.io$/i.test(location.hostname);
 const MODE=()=>localStorage.getItem('svc_portal_mode')==='each'?'each':'root';
 const EACH_KEYS=()=>['settings',...SYSB.map(s=>s.k)];
 const DEF_LINKS={report:'https://coos0820-hub.github.io/Service-time-reporting/',fs:'https://coos0820-hub.github.io/Field-service/',cq:'https://coos0820-hub.github.io/Customer-issue/',teardown:'',rs:'https://coos0820-hub.github.io/Repair-shop/'};
@@ -317,7 +319,7 @@ function render(){
   if(S.tab==='check'&&!S.check&&ready())runCheck();
 }
 const OLD_LINKS=['https://coos0820-hub.github.io/service-report/','https://coos0820-hub.github.io/field-service/'];
-function linkFor(k){const sy=SYSALL.find(x=>x.k===k);if(sy&&sy.kind==='link')return sy.link||'';if(MODE()==='each'){const u=S.set&&S.set.links&&S.set.links[k];return (u&&!OLD_LINKS.includes(u))?u:(DEF_LINKS[k]||'')}const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
+function linkFor(k){const sy=SYSALL.find(x=>x.k===k);if(sy&&sy.kind==='link')return sy.link||'';if(MODE()==='each'||WEBLINK()){const u=S.set&&S.set.links&&S.set.links[k];return (u&&!OLD_LINKS.includes(u))?u:(DEF_LINKS[k]||'')}const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
 function banner(){
   if(!FSA)return `<div class="banner">這個瀏覽器不支援讀取共用資料夾，請用電腦版 Chrome 或 Edge 開啟。各系統入口仍可使用。</div>`;
   if(MODE()==='each')return `<div class="banner info">過渡模式（NAS 上線前）：各系統個別指定資料夾，「開啟」連到 GitHub Pages。NAS 上線後按右上角「改用 NAS 根目錄」切換，並把共用設定.json <b>搬移</b>到 NAS。</div>`+
@@ -347,7 +349,7 @@ function vHome(){
     else body=`<div class="msg">連結共用根目錄後顯示即時狀態</div>`;
     let lastT=sm&&sm.last?'更新 '+fDT(sm.last):(found?'資料夾：'+esc(S.dirs[s.k].name):'');
     if(MODE()==='each'&&s.kind!=='link')lastT+=` <button class="btn sm" data-act="pickeach" data-k="${s.k}" title="${found?'目前：'+esc(S.dirs[s.k].name):''}">${S.each[s.k]?'更換資料夾':'指定資料夾'}</button>${S.each[s.k]?` <button class="btn sm" data-act="cleareach" data-k="${s.k}">清除</button>`:''}`;
-    const idxWarn=found&&info.index===false&&MODE()!=='each'?' <span class="wrnc">（資料夾內沒有 index.html）</span>':'';
+    const idxWarn=found&&info.index===false&&MODE()!=='each'&&!WEBLINK()?' <span class="wrnc">（資料夾內沒有 index.html）</span>':'';
     return `<div class="tile" style="--c:${s.color}" data-k="${esc(s.k)}" ${E?'draggable="true"':''}>${E?`<button class="tx" data-act="hhide" data-k="${esc(s.k)}" title="從首頁移除">✕</button>`:''}<div class="tt">${E?'<span class="grip">⋮⋮</span>':''}<b>${esc(s.name)}</b><span>${s.code}</span></div>
       <div class="desc">${esc(s.desc)}</div>${body}
       <div class="foot"><span class="hint">${lastT}${idxWarn}</span>${href?`<a class="btn pri" href="${href}" target="_blank" rel="noopener">開啟</a>`:`<span class="btn dis">開啟</span>`}</div></div>`}).join('')}${addCard}</div>
