@@ -107,20 +107,22 @@ main{min-height:0;display:grid;gap:1vw}
 .br .bar{height:1.15em}
 .lg{display:flex;flex-wrap:wrap;gap:.3em 1em;font-size:.92em;color:var(--sub);margin-bottom:.6em}
 /* 排程 */
-.chip{background:var(--pn2);border-left:.32em solid var(--c,var(--acc));border-radius:.3em;padding:.2em .4em;line-height:1.25;overflow:hidden;min-width:0}
+.chip{background:var(--c,var(--acc));color:#fff;border-radius:.3em;padding:.2em .4em;line-height:1.25;overflow:hidden;min-width:0;position:relative}
 .chip b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:1.02em}
-.chip span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.82em;color:var(--sub)}
-.chip.late{box-shadow:inset 0 0 0 2px var(--bad)}
-.chip.late b{color:var(--bad)}
-.chip.closed{opacity:.6}
+.chip span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.82em;color:#fff;opacity:.92}
+.chip.bdg b,.card.bdg b{padding-right:2.6em}
+.bd{position:absolute;right:.3em;top:.2em;font-style:normal;font-weight:700;font-size:.72em;line-height:1.35;background:rgba(255,255,255,.92);color:var(--c);border-radius:1em;padding:0 .45em}
+.chip.late,.card.late{box-shadow:0 0 0 .16em var(--bad)}
+.chip.late .bd,.card.late .bd{background:var(--bad);color:#fff}
+.chip.done .bd,.card.done .bd{color:#9a6a00}
+.chip.closed,.card.closed{opacity:.55}.chip.closed .bd,.card.closed .bd{color:#1f9d55}
 .cells{display:flex;flex-direction:column;gap:.25em;min-height:0;overflow:hidden}
 .dr{display:grid;grid-template-columns:6.6em 1fr;gap:.7em;align-items:stretch;border-bottom:1px solid var(--ln);padding:.45em 0;min-height:0}
 .dr .nm{font-size:1.25em;font-weight:700;display:flex;align-items:center}
 .cards{display:flex;gap:.6em;flex-wrap:wrap;min-width:0}
-.card{background:var(--pn2);border-left:.4em solid var(--c,var(--acc));border-radius:.4em;padding:.4em .7em;min-width:14em;max-width:100%;flex:1 1 18em}
+.card{background:var(--c,var(--acc));color:#fff;border-radius:.4em;padding:.4em .7em;min-width:14em;max-width:100%;flex:1 1 18em;position:relative}
 .card b{font-size:1.35em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card .m{color:var(--sub);font-size:.95em;display:flex;flex-wrap:wrap;gap:.2em .9em}
-.card.late{box-shadow:inset 0 0 0 2px var(--bad)}
+.card .m{color:#fff;opacity:.92;font-size:.95em;display:flex;flex-wrap:wrap;gap:.2em .9em}
 .pl{display:flex;flex-direction:column;gap:.4em;overflow:hidden}
 .pi{display:grid;grid-template-columns:1fr auto;gap:.1em .6em;background:var(--pn2);border-left:.32em solid #f07a43;border-radius:.35em;padding:.3em .55em}
 .pi b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -235,6 +237,12 @@ const TN={WS:'工單維修',FS:'現場服務',SYS:'系統支援',TEST:'新機測
 const code=t=>String(t||'').split(' ')[0];
 const tcol=c=>TC[c]||TC.OTH;
 const tname=t=>TN[code(t)]||String(t||'').split(' ').slice(1).join(' ')||t||'其他';
+/* Field Service 卡片依服務主旨上色（與訊息單系統、Repair Shop 一致）；階段用右上角標籤 */
+const FS_TC=[['保養','#1baf7a'],['維修','#eb6834'],['檢修','#eb6834'],['檢查','#6250d6'],['定位','#2a78d6'],['試車','#2a78d6']];
+function fsTC(t){t=String(t||'');let b='#7a7d75',bi=1e9;FS_TC.forEach(([k,c])=>{const i=t.indexOf(k);if(i>=0&&i<bi){bi=i;b=c}});return b}
+function fsBadge(c){return c.late?'逾期':c.stage==='待審核'?'待審':c.stage==='結案'?'✓':''}
+function fsCls(c){return c.late?'late':c.stage==='待審核'?'done':c.stage==='結案'?'closed':''}
+function fsLegend(){return [['保養','#1baf7a'],['維修','#eb6834'],['檢查','#6250d6'],['定位/試車','#2a78d6'],['其他','#7a7d75']].map(([l,c])=>`<span><i class="dot" style="background:${c}"></i>${l}</span>`).join('')+'<span>待審＝報告待審核</span><span>✓ 結案</span><span style="color:var(--bad)">逾期＝未回報</span>'}
 const SC={'待安排':'#f07a43','已排程':'#3d8bfd','待審核':'#f2b01e','結案':'#2fbf71','取消':'#8a8f96','轉系統部門':'#8b7bff'};
 const RX={report:/報工|service.?report/i,fs:/field|^\d*_?fs\b|排程|訊息單/i,settings:/共用設定|setting/i,rs:/repair|維修排程|^\d*_?rs\b/i};
 
@@ -540,9 +548,9 @@ const fsStaff=()=>((S.fs.set&&S.fs.set.staff)||[]).filter(s=>s&&s.name&&s.active
 const live=c=>c.stage!=='取消'&&c.stage!=='轉系統部門';
 function custArea(name){const cs=(S.fs.set&&S.fs.set.customers)||[];const c=cs.find(x=>x.name===name);return c&&(c.area||'')}
 function timeTxt(c){const r=c.r;return (r.tStart?r.tStart+(r.tEnd?'–'+r.tEnd:''):'')}
-function chip(c,showStaff){const cls=c.late?'late':c.stage==='結案'?'closed':'';
+function chip(c,showStaff){const cls=fsCls(c),bd=fsBadge(c);
   const sub=[c.type,timeTxt(c),c.r.vehicle,showStaff?(c.staff.join('、')||'未指派'):''].filter(Boolean).join('・');
-  return `<div class="chip ${cls}" style="--c:${SC[c.stage]||'#3d8bfd'}"><b>${c.late?'⚠ ':''}${esc(c.sc)}</b><span>${esc(sub)}</span></div>`}
+  return `<div class="chip ${cls}${bd?' bdg':''}" style="--c:${fsTC(c.type)}">${bd?`<i class="bd">${bd}</i>`:''}<b>${esc(c.sc)}</b><span>${esc(sub)}</span></div>`}
 function fsKpis(cs){
   const t=today(),ws=mondayOf(t),we=addD(ws,6);
   const pend=cs.filter(c=>c.stage==='待安排'),maxW=Math.max(0,...pend.map(c=>c.wait||0));
@@ -572,7 +580,7 @@ function fsDay(m,cs){
   const staff=fsStaff();const rows=[...staff.filter(s=>td.some(c=>c.staff.includes(s)))];
   const un=td.filter(c=>!c.staff.length);const idle=staff.filter(s=>!rows.includes(s));
   const card=c=>{const a=custArea(c.cust);const dn=c.days>1?`第 ${diffD(c.date,t)+1}/${c.days} 天`:'';
-    return `<div class="card ${c.late?'late':''}" style="--c:${SC[c.stage]||'#3d8bfd'}"><b>${esc(c.sc)}</b><div class="m">${[c.type,timeTxt(c),c.r.vehicle?'🚐 '+c.r.vehicle:'',a?'📍'+a:'',dn,c.staff.length>1?'同行 '+c.staff.length+' 人':''].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join('')}</div></div>`};
+    return `<div class="card ${fsCls(c)}${fsBadge(c)?' bdg':''}" style="--c:${fsTC(c.type)}">${fsBadge(c)?`<i class="bd">${fsBadge(c)}</i>`:''}<b>${esc(c.sc)}</b><div class="m">${[c.type,timeTxt(c),c.r.vehicle?'🚐 '+c.r.vehicle:'',a?'📍'+a:'',dn,c.staff.length>1?'同行 '+c.staff.length+' 人':''].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join('')}</div></div>`};
   let h=rows.map(s=>`<div class="dr"><div class="nm">${esc(s)}</div><div class="cards">${td.filter(c=>c.staff.includes(s)).map(card).join('')}</div></div>`).join('');
   if(un.length)h+=`<div class="dr"><div class="nm" style="color:var(--warn)">未指派</div><div class="cards">${un.map(card).join('')}</div></div>`;
   if(!h)h='<div class="empty big" style="margin-top:6vh">今天沒有排程</div>';
@@ -594,7 +602,7 @@ function fsWeek(m,cs){
     g+=`<div class="rn">${esc(s)}${s==='未指派'?'':`<small>${pd} 天</small>`}</div>`;
     days.forEach(d=>{const x=mine.filter(c=>onDay(c,d));g+=`<div class="${d===t?'td':''} ${isWE(d)?'we':''}"><div class="cells">${x.map(c=>chip(c,false)).join('')}</div></div>`})});
   m.style.gridTemplateColumns='1fr 22%';
-  m.innerHTML=`<div class="pn"><h2>人員週排程 <small>${md(ws)}–${md(we)}</small><span style="flex:1"></span><span class="lg" style="margin:0">${['已排程','待審核','結案'].map(s=>`<span><i class="dot" style="background:${SC[s]}"></i>${s}</span>`).join('')}<span><i class="dot" style="background:var(--bad)"></i>逾期未回報</span></span></h2>
+  m.innerHTML=`<div class="pn"><h2>人員週排程 <small>${md(ws)}–${md(we)}</small><span style="flex:1"></span><span class="lg" style="margin:0">${fsLegend()}</span></h2>
      <div class="wg" style="grid-template-columns:6.6em repeat(${days.length},minmax(0,1fr));grid-template-rows:auto repeat(${rows.length},minmax(0,1fr))">${g}</div></div>
    <div class="pn"><h2>待安排 <small>依等待天數</small></h2>${pendList(cs,12)}</div>`;
 }
@@ -610,10 +618,10 @@ function fsMonth(m,cs){
   const hd=['一','二','三','四','五','六','日'].map(x=>`<div class="h">${x}</div>`).join('');
   const cells=days.map(d=>{const x=vis.filter(c=>onDay(c,d)).sort((a,b)=>a.sc.localeCompare(b.sc));
     const more=x.length>per+1?x.length-per:0;const show=more?x.slice(0,per):x;
-    return `<div class="${d.slice(0,7)!==mk?'om':''} ${d===t?'td':''} ${isWE(d)?'we':''}"><div class="dn"><span>${+d.slice(8)}</span>${x.length?`<span>${x.length}</span>`:''}</div>${show.map(c=>`<div class="chip ${c.late?'late':c.stage==='結案'?'closed':''}" style="--c:${SC[c.stage]}"><b>${c.late?'⚠ ':''}${esc(c.sc)}${c.staff.length?' <span style="display:inline;color:var(--sub);font-weight:400">'+esc(c.staff.join('、'))+'</span>':''}</b></div>`).join('')}${more?`<div class="more">＋${more} 件</div>`:''}</div>`}).join('');
+    return `<div class="${d.slice(0,7)!==mk?'om':''} ${d===t?'td':''} ${isWE(d)?'we':''}"><div class="dn"><span>${+d.slice(8)}</span>${x.length?`<span>${x.length}</span>`:''}</div>${show.map(c=>`<div class="chip ${fsCls(c)}${fsBadge(c)?' bdg':''}" style="--c:${fsTC(c.type)}">${fsBadge(c)?`<i class="bd">${fsBadge(c)}</i>`:''}<b>${esc(c.sc)}${c.staff.length?' <span style="display:inline;color:#fff;opacity:.85;font-weight:400">'+esc(c.staff.join('、'))+'</span>':''}</b></div>`).join('')}${more?`<div class="more">＋${more} 件</div>`:''}</div>`}).join('');
   const mc=vis.filter(c=>c.date.slice(0,7)===mk||c.end.slice(0,7)===mk);
   m.style.gridTemplateColumns='1fr';
-  m.innerHTML=`<div class="pn"><h2>${+mk.slice(5)} 月排程 <small>共 ${mc.length} 件</small><span style="flex:1"></span><span class="lg" style="margin:0">${['已排程','待審核','結案'].map(s=>`<span><i class="dot" style="background:${SC[s]}"></i>${s}</span>`).join('')}</span></h2>
+  m.innerHTML=`<div class="pn"><h2>${+mk.slice(5)} 月排程 <small>共 ${mc.length} 件</small><span style="flex:1"></span><span class="lg" style="margin:0">${fsLegend()}</span></h2>
     <div class="cal" style="grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,minmax(0,.62fr));grid-template-rows:auto repeat(${weeks},minmax(0,1fr))">${hd}${cells}</div></div>`;
 }
 
