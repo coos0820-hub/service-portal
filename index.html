@@ -81,6 +81,16 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 .stabs button.on{background:#1f3a5f;color:#fff;border-color:#1f3a5f}
 .etbl input[type=text]{width:100%;min-width:60px;padding:4px 6px;font-size:13px}
 .etbl td{padding:3px 4px;vertical-align:middle}.etbl th{white-space:nowrap}
+.fold{border:1px solid var(--line);border-radius:8px;max-height:64vh;overflow:auto;background:#fff}
+.fg>.fh{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f4f6f9;border-bottom:1px solid var(--line);cursor:pointer;position:sticky;top:0;z-index:1;font-weight:700;user-select:none}
+.fg>.fh:hover{background:#e9eef5}.fh .cnt{font-weight:400;color:#6b7785;font-size:12px}.fh .sp{flex:1}
+.tw{display:inline-block;width:14px;transition:transform .15s;color:#6b7785}.open>.fh .tw,.open>.cr .tw{transform:rotate(90deg)}
+.cr{display:flex;gap:10px;align-items:center;padding:6px 10px 6px 26px;border-bottom:1px solid #eef0f3;cursor:pointer;font-size:14px}.cr:hover{background:#f8fafc}
+.cr .nm{font-weight:600;min-width:160px}.cr .mt{color:#6b7785;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ced{padding:8px 10px 12px 26px;background:#fbfcfe;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 10px}
+.ced label{font-size:12px;color:#6b7785;display:flex;flex-direction:column;gap:2px}.ced input[type=text]{width:100%;padding:4px 6px;font-size:13px}.ced .w2{grid-column:span 2}
+.mbody{padding:8px 10px 12px 34px;border-bottom:1px solid var(--line)}.mchip{display:inline-flex;align-items:center;gap:4px;background:#eef3fa;border:1px solid #d5e0ee;border-radius:12px;padding:2px 4px 2px 10px;font-size:12.5px;font-family:Consolas,monospace;margin:0 6px 6px 0}
+.mchip button{border:none;background:none;color:#a33;cursor:pointer;font-size:13px;padding:0 4px}.fh .ib{border:1px solid var(--line);background:#fff;border-radius:5px;font-size:12px;padding:1px 7px;cursor:pointer;font-weight:400}
 .rolecb{display:inline-flex;align-items:center;gap:2px;margin-right:6px;font-size:12px;white-space:nowrap}
 </style>
 </head>
@@ -97,7 +107,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.15 (2026-11-17)';
+const VER='v1.16 (2026-11-17)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -504,30 +514,45 @@ function vPeople(st){
    </tbody></table></div></div>`;
 }
 function vCust(st){
-  const q=(S.cqq||'').trim().toLowerCase();
-  const all=st.customers.map((c,i)=>({c,i})).filter(({c})=>!q||[c.name,c.area,c.contact,c.segment,...(c.alias||[])].join(' ').toLowerCase().includes(q));
-  const rows=all.slice(0,200);
+  const q=(S.cqq||'').trim().toLowerCase();S.cgOpen=S.cgOpen||{};S.cOpen=S.cOpen||{};
+  const all=st.customers.map((c,i)=>({c,i})).filter(({c})=>!q||[c.name,c.area,c.contact,c.segment,c.addr,...(c.alias||[])].join(' ').toLowerCase().includes(q));
+  const groups={};all.forEach(x=>{const g=(x.c.area||'').trim()||'（未填區域）';(groups[g]=groups[g]||[]).push(x)});
+  const keys=Object.keys(groups).sort((a,b)=>a==='（未填區域）'?1:b==='（未填區域）'?-1:a.localeCompare(b,'zh-Hant'));
+  const isOpen=g=>!!q||S.cgOpen[g];
+  const ed=(c,i)=>`<div class="ced">
+    <label class="w2">客戶名稱<input type="text" data-ci="${i}" data-cf="name" value="${esc(c.name)}"></label><label>別名（逗號分隔）<input type="text" data-ci="${i}" data-cf="alias" value="${esc((c.alias||[]).join(','))}"></label>
+    <label>聯絡人<input type="text" data-ci="${i}" data-cf="contact" value="${esc(c.contact)}"></label><label>電話<input type="text" data-ci="${i}" data-cf="phone" value="${esc(c.phone||(c.phones||[]).map(x=>x.v).join(' / '))}"></label>
+    <label class="w2">地址<input type="text" data-ci="${i}" data-cf="addr" value="${esc(c.addr)}"></label><label>區域<input type="text" data-ci="${i}" data-cf="area" value="${esc(c.area)}"></label>
+    <label>Segment<input type="text" data-ci="${i}" data-cf="segment" value="${esc(c.segment)}"></label><label>里程 km<input type="text" data-ci="${i}" data-cf="km" value="${c.km==null?'':c.km}"></label>
+    <label>車程 分<input type="text" data-ci="${i}" data-cf="min" value="${c.min==null?'':c.min}"></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;margin-top:14px"><input type="checkbox" data-ci="${i}" data-cf="photo" ${c.photo?'checked':''}>需照片</label>
+    <div style="display:flex;align-items:flex-end;gap:6px"><button class="btn sm" data-act="ctog" data-i="${i}">收合</button><button class="btn sm" data-act="cdel" data-i="${i}">刪除</button></div></div>`;
+  const row=({c,i})=>{const o=!!S.cOpen[i];return `<div class="${o?'open':''}"><div class="cr" data-act="ctog" data-i="${i}"><span class="tw">▶</span><span class="nm">${esc(c.name||'（未命名）')}</span><span class="mt">${esc([c.contact,c.km!=null?c.km+' km':'',c.addr].filter(Boolean).join('　·　'))}</span></div>${o?ed(c,i):''}</div>`};
   return `<div class="card"><h3>客戶（${st.customers.length}）</h3>
-   <p class="hint">訊息單系統、車輛調度等系統的客戶下拉選單、預設地址與里程都讀這份。</p>
-   <div class="row" style="margin-bottom:8px"><input type="text" id="cqq" placeholder="搜尋客戶／區域／聯絡人" value="${esc(S.cqq||'')}" style="max-width:260px"><button class="btn sm" data-act="cadd">＋ 新增客戶</button>${all.length>200?`<span class="hint">只顯示前 200 筆，請用搜尋縮小範圍</span>`:''}</div>
-   <div style="overflow-x:auto"><table class="tbl etbl"><thead><tr><th>客戶名稱</th><th>別名</th><th>聯絡人</th><th>電話</th><th>地址</th><th>區域</th><th>Segment</th><th>需照片</th><th>里程 km</th><th>車程 分</th><th></th></tr></thead><tbody>
-   ${rows.map(({c,i})=>`<tr><td><input type="text" data-ci="${i}" data-cf="name" value="${esc(c.name)}" style="min-width:140px"></td><td><input type="text" data-ci="${i}" data-cf="alias" value="${esc((c.alias||[]).join(','))}"></td>
-    <td><input type="text" data-ci="${i}" data-cf="contact" value="${esc(c.contact)}"></td><td><input type="text" data-ci="${i}" data-cf="phone" value="${esc(c.phone||(c.phones||[]).map(x=>x.v).join(' / '))}"></td>
-    <td><input type="text" data-ci="${i}" data-cf="addr" value="${esc(c.addr)}" style="min-width:180px"></td><td><input type="text" data-ci="${i}" data-cf="area" value="${esc(c.area)}" style="max-width:80px"></td>
-    <td><input type="text" data-ci="${i}" data-cf="segment" value="${esc(c.segment)}" style="max-width:100px"></td><td><input type="checkbox" data-ci="${i}" data-cf="photo" ${c.photo?'checked':''}></td>
-    <td><input type="text" data-ci="${i}" data-cf="km" value="${c.km==null?'':c.km}" style="max-width:60px"></td><td><input type="text" data-ci="${i}" data-cf="min" value="${c.min==null?'':c.min}" style="max-width:60px"></td>
-    <td><button class="btn sm" data-act="cdel" data-i="${i}">刪除</button></td></tr>`).join('')||'<tr><td colspan="11" class="hint">沒有資料。可以到「匯入」頁從訊息單系統匯入。</td></tr>'}
-   </tbody></table></div></div>`;
+   <p class="hint">訊息單系統、車輛調度等系統的客戶下拉選單、預設地址與里程都讀這份。依「區域」分組；點組名展開，點客戶開啟編輯。</p>
+   <div class="row" style="margin-bottom:8px"><input type="text" id="cqq" placeholder="搜尋客戶／區域／聯絡人／地址" value="${esc(S.cqq||'')}" style="max-width:280px"><button class="btn sm" data-act="cadd">＋ 新增客戶</button>
+    <button class="btn sm" data-act="cgall" data-v="1">全部展開</button><button class="btn sm" data-act="cgall" data-v="0">全部收合</button>${q?`<span class="hint">找到 ${all.length} 筆</span>`:''}</div>
+   <div class="fold">${keys.length?keys.map(g=>`<div class="fg ${isOpen(g)?'open':''}"><div class="fh" data-act="cgtog" data-g="${esc(g)}"><span class="tw">▶</span>${esc(g)}<span class="cnt">${groups[g].length} 家</span></div>${isOpen(g)?groups[g].map(row).join(''):''}</div>`).join(''):'<div class="hint" style="padding:12px">沒有資料。可以到「匯入」頁從訊息單系統匯入。</div>'}</div></div>`;
 }
 function modelsText(st){
   const fams=[...st.families];Object.keys(st.models||{}).forEach(f=>{if(!fams.some(x=>x.toLowerCase()===f.toLowerCase()))fams.push(f)});
   return fams.map(f=>{const k=Object.keys(st.models||{}).find(x=>x.toLowerCase()===f.toLowerCase());const m=k?st.models[k]:[];return m.length?f+': '+m.join(', '):f}).join('\n');
 }
+const mkey=(st,f)=>Object.keys(st.models||{}).find(x=>x.toLowerCase()===String(f).toLowerCase());
 function vModels(st){
-  const others=familySources(),fam=st.families;
-  return `<div class="card"><h3>機種家族與型號（${fam.length} 個家族，${Object.values(st.models||{}).reduce((a,b)=>a+b.length,0)} 個型號）</h3>
-   <p class="hint">一行一個家族，格式「家族: 型號1, 型號2」；只有家族名稱也可以。順序就是各系統點選時的順序。報工、Repair Shop、客戶問題點用家族；訊息單系統用家族＋型號。</p>
-   <textarea id="models" rows="18" style="width:100%;font-family:Consolas,monospace;font-size:13px">${esc(modelsText(st))}</textarea>
+  const others=familySources(),fam=st.families;S.fOpen=S.fOpen||{};
+  Object.keys(st.models||{}).forEach(f=>{if(!fam.some(x=>x.toLowerCase()===f.toLowerCase()))fam.push(f)});
+  const total=Object.values(st.models||{}).reduce((a,b)=>a+b.length,0);
+  const tree=fam.map((f,fi)=>{const k=mkey(st,f),ms=k?st.models[k]:[],o=!!S.fOpen[f];
+    return `<div class="fg ${o?'open':''}"><div class="fh" data-act="ftog" data-fi="${fi}"><span class="tw">▶</span>${esc(f)}<span class="cnt">${ms.length} 個型號</span><span class="sp"></span>
+      <button class="ib" data-act="fmv" data-fi="${fi}" data-d="-1" title="上移">↑</button><button class="ib" data-act="fmv" data-fi="${fi}" data-d="1" title="下移">↓</button><button class="ib" data-act="fren" data-fi="${fi}">改名</button><button class="ib" data-act="fdel" data-fi="${fi}">刪除</button></div>
+      ${o?`<div class="mbody">${ms.map((m,mi)=>`<span class="mchip">${esc(m)}<button data-act="mdel" data-fi="${fi}" data-mi="${mi}" title="刪除">✕</button></span>`).join('')||'<span class="hint">還沒有型號。</span>'}
+        <div class="row" style="margin-top:6px"><input type="text" id="madd-${fi}" placeholder="新增型號，可一次貼多個（逗號分隔）" style="max-width:380px"><button class="btn sm" data-act="madd" data-fi="${fi}">加入</button></div></div>`:''}</div>`}).join('');
+  return `<div class="card"><h3>機種家族與型號（${fam.length} 個家族，${total} 個型號）</h3>
+   <p class="hint">點家族展開型號。順序就是各系統點選時的順序（用 ↑↓ 調整）。報工、Repair Shop、客戶問題點用家族；訊息單系統用家族＋型號。</p>
+   <div class="row" style="margin-bottom:8px"><input type="text" id="fnew" placeholder="新增家族名稱" style="max-width:200px"><button class="btn sm" data-act="fnew">＋ 新增家族</button>
+    <button class="btn sm" data-act="fall" data-v="1">全部展開</button><button class="btn sm" data-act="fall" data-v="0">全部收合</button><span class="sp" style="flex:1"></span><button class="btn sm" data-act="mtext">${S.mText?'改回樹狀':'文字批次編輯'}</button></div>
+   ${S.mText?`<textarea id="models" rows="18" style="width:100%;font-family:Consolas,monospace;font-size:13px">${esc(modelsText(st))}</textarea><p class="hint">一行一個家族，格式「家族: 型號1, 型號2」。改完按「改回樹狀」或直接儲存。</p>`:`<div class="fold">${tree||'<div class="hint" style="padding:12px">還沒有家族。</div>'}</div>`}
    ${others.map(o=>{const add=o.list.filter(x=>!fam.some(f=>f.toLowerCase()===String(x).toLowerCase()));return `<div class="row" style="margin-top:6px"><span class="hint">${esc(o.src)} 有 ${o.list.length} 個家族${add.length?'，其中 '+add.length+' 個不在清單：':'，都已在清單中'}</span>${add.length?`<span class="chips">${add.map(x=>`<span class="chip new">${esc(x)}</span>`).join('')}</span><button class="btn sm" data-act="famadd" data-src="${esc(o.src)}">加入</button>`:''}</div>`}).join('')}
   </div>`;
 }
@@ -701,8 +726,26 @@ document.addEventListener('click',async e=>{
   if(a==='ppin'){const p=S.set.people[+t.dataset.i];if(!p)return;const v1=prompt('設定「'+p.name+'」的 PIN（4～8 位數字）');if(v1===null)return;if(!/^\d{4,8}$/.test(v1)){toast('PIN 要 4～8 位數字',true);return}
     const v2=prompt('再輸入一次');if(v2!==v1){toast('兩次輸入不同',true);return}p.pin=await pinHash(v1);S.dirty=true;render();toast('PIN 已設定，按「儲存共用設定」後生效');return}
   if(a==='pclr'){const p=S.set.people[+t.dataset.i];if(p&&confirm('清除「'+p.name+'」的 PIN？清除後他下次登入各系統時要重新設定。')){p.pin='';S.dirty=true;render()}return}
-  if(a==='cadd'){S.set.customers.unshift(normCust({}));S.cqq='';S.dirty=true;render();const el=document.querySelector('[data-ci="0"][data-cf="name"]');if(el)el.focus();return}
-  if(a==='cdel'){const c=S.set.customers[+t.dataset.i];if(c&&confirm('刪除客戶「'+(c.name||'（未命名）')+'」？')){S.set.customers.splice(+t.dataset.i,1);S.dirty=true;render()}return}
+  if(a==='cadd'){S.set.customers.unshift(normCust({}));S.cqq='';S.cOpen={0:true};S.cgOpen=Object.assign(S.cgOpen||{},{'（未填區域）':true});S.dirty=true;render();const el=document.querySelector('[data-ci="0"][data-cf="name"]');if(el)el.focus();return}
+  if(a==='ctog'){const i=+t.dataset.i;S.cOpen=S.cOpen||{};S.cOpen[i]=!S.cOpen[i];render();return}
+  if(a==='cgtog'){if((S.cqq||'').trim())return;const g=t.dataset.g;S.cgOpen=S.cgOpen||{};S.cgOpen[g]=!S.cgOpen[g];render();return}
+  if(a==='cgall'){S.cgOpen={};if(t.dataset.v==='1')S.set.customers.forEach(c=>{S.cgOpen[(c.area||'').trim()||'（未填區域）']=true});render();return}
+  if(a==='mtext'){if(readForm()===false)return;S.mText=!S.mText;render();return}
+  if(['ftog','fmv','fren','fdel','madd','mdel','fnew','fall'].includes(a)){const st=S.set,fam=st.families;st.models=st.models||{};
+    Object.keys(st.models).forEach(f=>{if(!fam.some(x=>x.toLowerCase()===f.toLowerCase()))fam.push(f)});
+    const fi=+t.dataset.fi,f=fam[fi];S.fOpen=S.fOpen||{};const mark=()=>{S.dirty=true};
+    if(a==='ftog'){if(e.target.closest('.ib'))return;S.fOpen[f]=!S.fOpen[f]}
+    else if(a==='fall'){S.fOpen={};if(t.dataset.v==='1')fam.forEach(x=>S.fOpen[x]=true)}
+    else if(a==='fmv'){const j=fi+(+t.dataset.d);if(j<0||j>=fam.length)return;[fam[fi],fam[j]]=[fam[j],fam[fi]];mark()}
+    else if(a==='fren'){const n=(prompt('家族「'+f+'」改名為：',f)||'').trim();if(!n||n===f)return;if(fam.some((x,i)=>i!==fi&&x.toLowerCase()===n.toLowerCase())){toast('已有同名家族',true);return}
+      const k=mkey(st,f);if(k){st.models[n]=st.models[k];delete st.models[k]}fam[fi]=n;S.fOpen[n]=S.fOpen[f];mark()}
+    else if(a==='fdel'){const k=mkey(st,f),n=k?st.models[k].length:0;if(!confirm('刪除家族「'+f+'」'+(n?'和底下 '+n+' 個型號':'')+'？\n（已存在的案件、報工紀錄不受影響）'))return;fam.splice(fi,1);if(k)delete st.models[k];mark()}
+    else if(a==='fnew'){const el=$('#fnew'),n=(el&&el.value||'').trim();if(!n){toast('請輸入家族名稱',true);return}if(fam.some(x=>x.toLowerCase()===n.toLowerCase())){toast('已有同名家族',true);return}fam.push(n);S.fOpen[n]=true;mark()}
+    else if(a==='madd'){const el=$('#madd-'+fi),v=(el&&el.value||'').split(/[,，、\n]/).map(x=>x.trim()).filter(Boolean);if(!v.length)return;const k=mkey(st,f)||f;const cur=st.models[k]||[];
+      const dup=v.filter(x=>cur.some(y=>y.toLowerCase()===x.toLowerCase()));st.models[k]=[...cur,...v.filter(x=>!cur.some(y=>y.toLowerCase()===x.toLowerCase()))];if(dup.length)toast('已存在：'+dup.join('、'));mark()}
+    else if(a==='mdel'){const k=mkey(st,f);if(!k)return;st.models[k].splice(+t.dataset.mi,1);if(!st.models[k].length)delete st.models[k];mark()}
+    render();if(a==='madd'){const el=$('#madd-'+fi);if(el)el.focus()}if(S.dirty){const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}return}
+  if(a==='cdel'){const c=S.set.customers[+t.dataset.i];if(c&&confirm('刪除客戶「'+(c.name||'（未命名）')+'」？')){S.set.customers.splice(+t.dataset.i,1);S.cOpen={};S.dirty=true;render()}return}
   if(a==='fsimport'){if(readForm()===false)return;const r=importFromFS();if(r){S.dirty=true;render();toast(r)}return}
   if(a==='legacyimport'){if(readForm()===false)return;const r=importLegacy();S.dirty=true;render();toast(r);return}
   if(a==='fromrep'){readForm();const m=repMaster();const f=t.dataset.rf;if(m&&m[f]){S.set[f]=JSON.parse(JSON.stringify(m[f]));S.dirty=true;render()}return}
@@ -734,7 +777,8 @@ document.addEventListener('change',e=>{
   if(kl==='s1'||kl==='s2'){const L=klaunch();const o=korder();L.s1=o[0];L.s2=o[1];L[kl]=e.target.value;ls.set('svc_portal_kiosk_launch',L);render();return}
   if(kl){const L=klaunch();L[kl]=['w','delay','port'].includes(kl)?(parseInt(e.target.value,10)||L[kl]):e.target.value;ls.set('svc_portal_kiosk_launch',L);render();return}
   if(e.target.dataset.folder){S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}});
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='pw1'||e.target.id==='pw2')){const b=document.querySelector('[data-act=unlock],[data-act=setpw]');if(b)b.click()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id&&(e.target.id.startsWith('madd-')||e.target.id==='fnew')){const b=e.target.parentNode.querySelector('[data-act]');if(b)b.click();return}
+  if(e.key==='Enter'&&(e.target.id==='pw1'||e.target.id==='pw2')){const b=document.querySelector('[data-act=unlock],[data-act=setpw]');if(b)b.click()}});
 window.addEventListener('beforeunload',e=>{if(S.dirty&&S.unlocked){e.preventDefault();e.returnValue=''}});
 window.addEventListener('focus',()=>{if(ready()&&!S.needGrant.length&&!S.loading&&S.tab==='home'&&Date.now()-(S.loadedAt||0)>60000)loadAll()});
 
