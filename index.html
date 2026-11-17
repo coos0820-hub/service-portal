@@ -88,6 +88,9 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 .cr{display:flex;gap:10px;align-items:center;padding:6px 10px 6px 26px;border-bottom:1px solid #eef0f3;cursor:pointer;font-size:14px}.cr:hover{background:#f8fafc}
 .cr .nm{font-weight:600;min-width:160px}.cr .mt{color:#6b7785;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ced{padding:8px 10px 12px 26px;background:#fbfcfe;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 10px}
+.ced .w4{grid-column:1/-1}.ced .lbl{font-size:12px;color:#6b7785;margin-bottom:4px}.ced select{padding:4px 6px;font-size:13px}
+.ctb{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:#fff}.ctrow{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap}.ctrow input{max-width:200px;padding:4px 6px;font-size:13px}.ctk{font-size:11px;color:#fff;background:#3b6db3;border-radius:8px;padding:1px 6px}
+.phs{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}.ph1{display:flex;gap:6px;align-items:center}.ph1 .pht{font-size:12px;color:#6b7785;min-width:30px}.ph1 input{padding:4px 6px;font-size:13px;width:150px}.ph1 input.pht{width:70px}
 .ced label{font-size:12px;color:#6b7785;display:flex;flex-direction:column;gap:2px}.ced input[type=text]{width:100%;padding:4px 6px;font-size:13px}.ced .w2{grid-column:span 2}
 .mbody{padding:8px 10px 12px 34px;border-bottom:1px solid var(--line)}.mchip{display:inline-flex;align-items:center;gap:4px;background:#eef3fa;border:1px solid #d5e0ee;border-radius:12px;padding:2px 4px 2px 10px;font-size:12.5px;font-family:Consolas,monospace;margin:0 6px 6px 0}
 .mchip button{border:none;background:none;color:#a33;cursor:pointer;font-size:13px;padding:0 4px}.fh .ib{border:1px solid var(--line);background:#fff;border-radius:5px;font-size:12px;padding:1px 7px;cursor:pointer;font-weight:400}
@@ -107,7 +110,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.16 (2026-11-17)';
+const VER='v1.17 (2026-11-17)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -136,11 +139,26 @@ const AUX=[{k:'portal',name:'入口網站',code:'00',match:/入口|portal/i},{k:
 const DEF_FAMILIES=["R5","Mink","COBRA","Seco","Dolphin","Panda","Puma","Samos","Fossa","Huckepack","其他品牌"];
 const DEF_SET=()=>({app:'shared-settings',ver:1,families:[...DEF_FAMILIES],
   formats:{wo:{example:'',pattern:'',note:''},fsn:{example:'',pattern:'',note:''}},
-  folders:{},links:{},stations:[],shifts:{},breaks:{},rsEngineers:[],salesOut:[],salesIn:[],people:[],customers:[],models:{},adminHash:'',updatedAt:'',updatedBy:''});
+  folders:{},links:{},stations:[],shifts:{},breaks:{},rsEngineers:[],salesOut:[],salesIn:[],people:[],customers:[],segments:[],models:{},adminHash:'',updatedAt:'',updatedBy:''});
 /* 共用人員角色（各系統依角色取用名單） */
 const PROLES=[['eng','FS 工程師'],['chief','主任'],['rs','Repair Shop 工程師'],['rsSched','Repair Shop 排程'],['salesOut','外勤業務'],['salesIn','內勤業務'],['viewer','檢視者']];
 const normPerson=x=>Object.assign({name:'',en:'',title:'',alias:[],code:'',roles:[],active:true,pin:''},x||{});
-const normCust=x=>Object.assign({name:'',alias:[],contact:'',phone:'',addr:'',area:'',segment:'',photo:false,km:null,min:null},x||{});
+/* 電話、聯絡人：和訊息單系統相同的格式（每位聯絡人各自的電話；第一位同步到舊欄位 contact／phones／phone） */
+const PH_DEF=['手機','市話','備用'];
+function phonesOf(o){let L=[];
+  if(o&&Array.isArray(o.phones)&&o.phones.length)L=o.phones.map(p=>({t:p.t||'電話',v:p.v||''}));
+  else if(o&&o.phone){String(o.phone).split(/[／\/,，;；]|\s{2,}/).map(x=>x.trim()).filter(Boolean).forEach(x=>{const m=x.match(/^(手機|市話|備用|電話|分機|傳真|[^\d+#(（]{1,6})[:：\s]+(.+)$/);
+    if(m)L.push({t:m[1],v:m[2].trim()});else L.push({t:/^(\+?886-?)?0?9\d{2}/.test(x.replace(/\s/g,''))?'手機':'市話',v:x})})}
+  const out=PH_DEF.map(t=>{const i=L.findIndex(p=>p.t===t);return i>=0?L.splice(i,1)[0]:{t,v:''}});
+  L.forEach(p=>{const e=out.find(q=>!q.v&&PH_DEF.includes(q.t)&&!['手機','市話','備用'].includes(p.t));if(e)e.v=p.v;else out.push(p)});return out}
+const phoneStr=L=>(L||[]).filter(p=>p.v&&String(p.v).trim()).map(p=>p.t+' '+String(p.v).trim()).join('／');
+function contactsOf(c){if(c&&Array.isArray(c.contacts)&&c.contacts.length)return c.contacts.map(x=>({name:String(x.name||''),title:String(x.title||''),phones:phonesOf({phones:x.phones})}));
+  if(c&&(c.contact||c.phone||(c.phones||[]).length))return [{name:c.contact||'',title:'',phones:phonesOf(c)}];return []}
+function custSync(c){const L=(Array.isArray(c.contacts)?c.contacts:contactsOf(c)).map(x=>({name:String(x.name||'').trim(),title:String(x.title||'').trim(),phones:(x.phones||[]).filter(p=>p&&p.v&&String(p.v).trim()).map(p=>({t:p.t||'電話',v:String(p.v).trim()}))})).filter(x=>x.name||x.phones.length);
+  c.contacts=L;c.contact=L[0]?L[0].name:'';c.phones=L[0]?L[0].phones:[];c.phone=phoneStr(c.phones);return c}
+const samePh=(a,b)=>phoneStr(a)===phoneStr(b);
+const normCust=x=>{const c=Object.assign({name:'',alias:[],contact:'',phone:'',phones:[],contacts:[],addr:'',area:'',segment:'',photo:false,km:null,min:null},x||{});c.contacts=contactsOf(c);if(!c.contacts.length)c.contacts=[{name:'',title:'',phones:phonesOf({})}];return c};
+const segLabel=(st,code)=>{const s=(st.segments||[]).find(x=>String(x.code)===String(code));return s?s.code+' '+s.name:(code||'')};
 /* PIN 雜湊與訊息單系統相同（舊 PIN 可直接沿用） */
 async function pinHash(v){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('fsd:pin:'+v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 /* 過渡模式（NAS 上線前）：各系統個別指定資料夾，開啟按鈕連到 GitHub Pages */
@@ -276,7 +294,7 @@ async function loadSettings0(){
 function normSet(j){const d=DEF_SET();j=Object.assign(d,j);j.formats=Object.assign(DEF_SET().formats,j.formats||{});
   for(const k of ['wo','fsn'])j.formats[k]=Object.assign({example:'',pattern:'',note:''},j.formats[k]||{});
   if(!Array.isArray(j.families))j.families=[...DEF_FAMILIES];j.folders=j.folders||{};j.links=j.links||{};
-  for(const k of ['stations','rsEngineers','salesOut','salesIn','people','customers'])if(!Array.isArray(j[k]))j[k]=[];
+  for(const k of ['stations','rsEngineers','salesOut','salesIn','people','customers','segments'])if(!Array.isArray(j[k]))j[k]=[];
   j.people=j.people.map(normPerson);j.customers=j.customers.map(normCust);if(!j.models||typeof j.models!=='object')j.models={};for(const k of ['shifts','breaks'])if(!j[k]||typeof j[k]!=='object')j[k]={};return j}
 
 async function loadAll(){
@@ -478,8 +496,8 @@ function vSettings(){
       <input type="password" id="pw1" placeholder="管理密碼" style="margin-bottom:8px">${first?'<input type="password" id="pw2" placeholder="再輸入一次" style="margin-bottom:8px">':''}
       <button class="btn pri" data-act="${first?'setpw':'unlock'}">${first?'設定並進入':'解鎖'}</button></div>`}
   const st=S.set;S.stab=S.stab||'gen';
-  const TABS=[['gen','一般'],['people','人員'],['cust','客戶'],['models','機種／型號'],['shop','廠內（站別／時段）'],['import','匯入']];
-  const body=S.stab==='people'?vPeople(st):S.stab==='cust'?vCust(st):S.stab==='models'?vModels(st):S.stab==='shop'?vSharedCard(st):S.stab==='import'?vImport(st):vGeneral(st);
+  const TABS=[['gen','一般'],['people','人員'],['cust','客戶'],['seg','Segment'],['models','機種／型號'],['shop','廠內（站別／時段）'],['import','匯入']];
+  const body=S.stab==='people'?vPeople(st):S.stab==='cust'?vCust(st):S.stab==='seg'?vSeg(st):S.stab==='models'?vModels(st):S.stab==='shop'?vSharedCard(st):S.stab==='import'?vImport(st):vGeneral(st);
   return `${S.setExists?'':'<div class="banner">共用設定檔還沒建立，下面是預設值；按「儲存」後會在共用設定資料夾建立「'+SETFILE+'」。</div>'}
   <p class="hint" style="margin:0 0 8px">共用設定檔位置：「${esc(S.dirs.settings.name)}」資料夾的 ${SETFILE}。人員、客戶、機種／型號由這裡統一維護，各系統只讀取（中繼約 5 分鐘內同步到各系統）。</p>
   <div class="row" style="margin-bottom:12px"><button class="btn ok" data-act="save">儲存共用設定</button><button class="btn" data-act="reload">放棄修改</button><button class="btn" data-act="lock">上鎖</button>
@@ -515,24 +533,30 @@ function vPeople(st){
 }
 function vCust(st){
   const q=(S.cqq||'').trim().toLowerCase();S.cgOpen=S.cgOpen||{};S.cOpen=S.cOpen||{};
-  const all=st.customers.map((c,i)=>({c,i})).filter(({c})=>!q||[c.name,c.area,c.contact,c.segment,c.addr,...(c.alias||[])].join(' ').toLowerCase().includes(q));
+  const all=st.customers.map((c,i)=>({c,i})).filter(({c})=>!q||[c.name,c.area,c.segment,c.addr,...(c.alias||[]),...c.contacts.map(x=>x.name)].join(' ').toLowerCase().includes(q));
   const groups={};all.forEach(x=>{const g=(x.c.area||'').trim()||'（未填區域）';(groups[g]=groups[g]||[]).push(x)});
   const keys=Object.keys(groups).sort((a,b)=>a==='（未填區域）'?1:b==='（未填區域）'?-1:a.localeCompare(b,'zh-Hant'));
   const isOpen=g=>!!q||S.cgOpen[g];
   const ed=(c,i)=>`<div class="ced">
-    <label class="w2">客戶名稱<input type="text" data-ci="${i}" data-cf="name" value="${esc(c.name)}"></label><label>別名（逗號分隔）<input type="text" data-ci="${i}" data-cf="alias" value="${esc((c.alias||[]).join(','))}"></label>
-    <label>聯絡人<input type="text" data-ci="${i}" data-cf="contact" value="${esc(c.contact)}"></label><label>電話<input type="text" data-ci="${i}" data-cf="phone" value="${esc(c.phone||(c.phones||[]).map(x=>x.v).join(' / '))}"></label>
-    <label class="w2">地址<input type="text" data-ci="${i}" data-cf="addr" value="${esc(c.addr)}"></label><label>區域<input type="text" data-ci="${i}" data-cf="area" value="${esc(c.area)}"></label>
-    <label>Segment<input type="text" data-ci="${i}" data-cf="segment" value="${esc(c.segment)}"></label><label>里程 km<input type="text" data-ci="${i}" data-cf="km" value="${c.km==null?'':c.km}"></label>
-    <label>車程 分<input type="text" data-ci="${i}" data-cf="min" value="${c.min==null?'':c.min}"></label>
-    <label style="flex-direction:row;align-items:center;gap:6px;margin-top:14px"><input type="checkbox" data-ci="${i}" data-cf="photo" ${c.photo?'checked':''}>需照片</label>
-    <div style="display:flex;align-items:flex-end;gap:6px"><button class="btn sm" data-act="ctog" data-i="${i}">收合</button><button class="btn sm" data-act="cdel" data-i="${i}">刪除</button></div></div>`;
-  const row=({c,i})=>{const o=!!S.cOpen[i];return `<div class="${o?'open':''}"><div class="cr" data-act="ctog" data-i="${i}"><span class="tw">▶</span><span class="nm">${esc(c.name||'（未命名）')}</span><span class="mt">${esc([c.contact,c.km!=null?c.km+' km':'',c.addr].filter(Boolean).join('　·　'))}</span></div>${o?ed(c,i):''}</div>`};
+    <label class="w2"><span>客戶名稱 <b style="color:#c33">*</b></span><input type="text" data-ci="${i}" data-cf="name" value="${esc(c.name)}"></label><label class="w2">別名（逗號分隔，搜尋用）<input type="text" data-ci="${i}" data-cf="alias" value="${esc((c.alias||[]).join(','))}"></label>
+    <div class="w4"><div class="lbl">聯絡人（可多位，各自的電話；第一位＝開訊息單預設）</div>${c.contacts.map((x,k)=>`<div class="ctb"><div class="ctrow">${k===0?'<span class="ctk">預設</span>':''}<input type="text" data-ci="${i}" data-cc="${k}" data-cx="name" value="${esc(x.name)}" placeholder="聯絡人姓名"><input type="text" data-ci="${i}" data-cc="${k}" data-cx="title" value="${esc(x.title||'')}" placeholder="部門／職稱"><span style="flex:1"></span>${k>0?`<button class="btn sm" data-act="ccup" data-i="${i}" data-c="${k}" title="設為預設">↑ 設為預設</button>`:''}<button class="btn sm" data-act="ccdel" data-i="${i}" data-c="${k}">✕ 刪除這位</button></div>
+      <div class="phs">${x.phones.map((p,j)=>`<div class="ph1">${j<PH_DEF.length?`<span class="pht">${esc(p.t)}</span>`:`<input type="text" class="pht" data-ci="${i}" data-cc="${k}" data-cp="${j}" data-cx="t" value="${esc(p.t)}" placeholder="名稱">`}<input type="text" data-ci="${i}" data-cc="${k}" data-cp="${j}" data-cx="v" value="${esc(p.v)}" placeholder="${p.t==='手機'?'09xx-xxx-xxx':p.t==='市話'?'03-xxxxxxx #分機':''}">${j>=PH_DEF.length?`<button class="btn sm" data-act="cpdel" data-i="${i}" data-c="${k}" data-p="${j}">✕</button>`:''}</div>`).join('')}<button class="btn sm" data-act="cpadd" data-i="${i}" data-c="${k}">＋ 新增電話</button></div></div>`).join('')}
+      <button class="btn sm" data-act="ccadd" data-i="${i}">＋ 新增聯絡人</button></div>
+    <label class="w4">地址<input type="text" data-ci="${i}" data-cf="addr" value="${esc(c.addr)}"></label>
+    <label class="w2">預設 Segment<select data-ci="${i}" data-cf="segment"><option value="">—</option>${(st.segments||[]).map(x=>`<option value="${esc(x.code)}" ${String(x.code)===String(c.segment)?'selected':''}>${esc(x.code)} ${esc(x.name)}</option>`).join('')}${c.segment&&!(st.segments||[]).some(x=>String(x.code)===String(c.segment))?`<option selected value="${esc(c.segment)}">${esc(c.segment)}（不在清單）</option>`:''}</select></label>
+    <label class="w2" style="flex-direction:row;align-items:center;gap:6px;margin-top:16px"><input type="checkbox" data-ci="${i}" data-cf="photo" ${c.photo?'checked':''}>預設需要照片報告</label>
+    <label>地區<input type="text" data-ci="${i}" data-cf="area" value="${esc(c.area)}"></label><label>單程 km<input type="text" data-ci="${i}" data-cf="km" value="${c.km==null?'':c.km}"></label><label>單程分鐘<input type="text" data-ci="${i}" data-cf="min" value="${c.min==null?'':c.min}"></label>
+    <div style="display:flex;align-items:flex-end;gap:6px"><button class="btn sm" data-act="ctog" data-i="${i}">收合</button><button class="btn sm" data-act="cdel" data-i="${i}">刪除客戶</button></div></div>`;
+  const row=({c,i})=>{const o=!!S.cOpen[i];return `<div class="${o?'open':''}"><div class="cr" data-act="ctog" data-i="${i}"><span class="tw">▶</span><span class="nm">${esc(c.name||'（未命名）')}</span><span class="mt">${esc([c.contacts.map(x=>x.name).filter(Boolean).join('、'),c.km!=null?c.km+' km':'',c.addr].filter(Boolean).join('　·　'))}</span></div>${o?ed(c,i):''}</div>`};
   return `<div class="card"><h3>客戶（${st.customers.length}）</h3>
    <p class="hint">訊息單系統、車輛調度等系統的客戶下拉選單、預設地址與里程都讀這份。依「區域」分組；點組名展開，點客戶開啟編輯。</p>
    <div class="row" style="margin-bottom:8px"><input type="text" id="cqq" placeholder="搜尋客戶／區域／聯絡人／地址" value="${esc(S.cqq||'')}" style="max-width:280px"><button class="btn sm" data-act="cadd">＋ 新增客戶</button>
     <button class="btn sm" data-act="cgall" data-v="1">全部展開</button><button class="btn sm" data-act="cgall" data-v="0">全部收合</button>${q?`<span class="hint">找到 ${all.length} 筆</span>`:''}</div>
    <div class="fold">${keys.length?keys.map(g=>`<div class="fg ${isOpen(g)?'open':''}"><div class="fh" data-act="cgtog" data-g="${esc(g)}"><span class="tw">▶</span>${esc(g)}<span class="cnt">${groups[g].length} 家</span></div>${isOpen(g)?groups[g].map(row).join(''):''}</div>`).join(''):'<div class="hint" style="padding:12px">沒有資料。可以到「匯入」頁從訊息單系統匯入。</div>'}</div></div>`;
+}
+function vSeg(st){
+  return `<div class="card"><h3>Segment（行業別，${(st.segments||[]).length} 項）</h3><p class="hint">每行「代碼 名稱」，例如「10 Semiconductor 半導體」。訊息單系統開單、客戶預設 Segment 都讀這份；FSN 會用到代碼，已使用的代碼請勿修改。</p>
+   <textarea id="segT" rows="18" style="width:100%;font-family:Consolas,monospace;font-size:13px">${esc((st.segments||[]).map(x=>x.code+' '+x.name).join('\n'))}</textarea></div>`;
 }
 function modelsText(st){
   const fams=[...st.families];Object.keys(st.models||{}).forEach(f=>{if(!fams.some(x=>x.toLowerCase()===f.toLowerCase()))fams.push(f)});
@@ -568,16 +592,31 @@ function importFromFS(){
   (fs.sales||[]).forEach(x=>upP(x,['salesOut'],{code:x.code||''}));
   (fs.viewers||[]).forEach(x=>upP(x,['viewer']));
   for(const c of fs.customers||[]){const name=String(c.name||'').trim();if(!name)continue;let t=st.customers.find(x=>x.name===name);
-    const src=normCust(Object.assign({},c,{phone:c.phone||(c.phones||[]).map(x=>(x.t?x.t+' ':'')+x.v).join(' / ')}));delete src.phones;
-    if(!t){st.customers.push(src);ca++}else{cm++;for(const [k,v] of Object.entries(src))if(v!==null&&v!==''&&v!==false&&!(Array.isArray(v)&&!v.length)&&(t[k]===null||t[k]===''||t[k]===false||(Array.isArray(t[k])&&!t[k].length)))t[k]=v}}
+    const src=normCust(JSON.parse(JSON.stringify(c)));delete src._local;delete src.contracts;
+    if(!t){st.customers.push(src);ca++}else{cm++;
+      for(const [k,v] of Object.entries(src)){if(['contacts','contact','phone','phones'].includes(k))continue;if(v!==null&&v!==''&&v!==false&&!(Array.isArray(v)&&!v.length)&&(t[k]===null||t[k]===''||t[k]===false||(Array.isArray(t[k])&&!t[k].length)))t[k]=v}
+      t.contacts=t.contacts.filter(x=>x.name||x.phones.some(p=>p.v));src.contacts.filter(x=>x.name||x.phones.some(p=>p.v)).forEach(x=>{const y=t.contacts.find(z=>z.name===x.name);if(!y)t.contacts.push(x);else if(!y.phones.some(p=>p.v))y.phones=x.phones});if(!t.contacts.length)t.contacts=[{name:'',title:'',phones:phonesOf({})}]}}
+  let sa=0;(fs.segments||[]).forEach(x=>{if(x&&x.code!=null&&!st.segments.some(y=>String(y.code)===String(x.code))){st.segments.push({code:String(x.code),name:String(x.name||'')});sa++}});
+  const pr=applyFsPending(false);
   for(const [f,ms] of Object.entries(fs.pumpTypes||{})){const fam=st.families.find(x=>x.toLowerCase()===f.toLowerCase())||f;if(!st.families.includes(fam))st.families.push(fam);
     const k=Object.keys(st.models).find(x=>x.toLowerCase()===fam.toLowerCase())||fam;const before=(st.models[k]||[]).length;st.models[k]=[...new Set([...(st.models[k]||[]),...ms])];ma+=st.models[k].length-before;if(k!==fam){st.models[fam]=st.models[k];delete st.models[k]}}
-  return `已匯入：人員新增 ${pa}、合併 ${pm}；客戶新增 ${ca}、合併 ${cm}；型號新增 ${ma}。確認無誤後按「儲存共用設定」。`;
+  return `已匯入：人員新增 ${pa}、合併 ${pm}；客戶新增 ${ca}、合併 ${cm}；Segment 新增 ${sa}；型號新增 ${ma}${pr?'；訊息單待確認變更 '+pr+' 筆':''}。確認無誤後按「儲存共用設定」。`;
 }
 function importLegacy(){const st=S.set;let n=0;
   const add=(name,r)=>{name=String(name||'').trim();if(!name)return;let p=st.people.find(x=>x.name===name);if(!p){p=normPerson({name});st.people.push(p);n++}if(!p.roles.includes(r))p.roles.push(r)};
   st.rsEngineers.forEach(x=>add(x,'rs'));st.salesOut.forEach(x=>add(x,'salesOut'));st.salesIn.forEach(x=>add(x,'salesIn'));
   return '已轉成人員：新增 '+n+' 人，其餘合併角色。';}
+/* 訊息單系統開單時新增的客戶／聯絡人／地址（custPending），在這裡確認後併入共用清單 */
+function fsPending(){const fs=fsSettings();if(!fs||!Array.isArray(fs.custPending))return[];const st=S.set;
+  return fs.custPending.filter(p=>{const c=st.customers.find(x=>x.name===p.cust);if(!c)return true;if(p.addr&&c.addr!==p.addr)return true;
+    if(p.contact&&p.contact.name){const x=c.contacts.find(y=>y.name===p.contact.name);if(!x||!samePh(x.phones,p.contact.phones))return true}return false})}
+function applyFsPending(only){const L=fsPending();let n=0;const st=S.set;
+  L.forEach((p,idx)=>{if(only!==false&&only!==undefined&&only!==idx)return;let c=st.customers.find(x=>x.name===p.cust);
+    if(!c){c=normCust({name:p.cust,addr:p.addr||'',segment:p.segment||'',photo:!!p.photo});c.contacts=[];st.customers.push(c)}
+    if(p.addr)c.addr=p.addr;
+    if(p.contact&&p.contact.name){c.contacts=c.contacts.filter(x=>x.name||x.phones.some(q=>q.v));const i=c.contacts.findIndex(y=>y.name===p.contact.name);const ph=phonesOf({phones:p.contact.phones});if(i>=0)c.contacts[i].phones=ph;else c.contacts.push({name:p.contact.name,title:p.contact.title||'',phones:ph})}
+    if(!c.contacts.length)c.contacts=[{name:'',title:'',phones:phonesOf({})}];n++});
+  return n}
 function fsSettings(){const f=S.data.fs;return f&&f.data&&f.data.settings||null}
 function vImport(st){
   const fs=fsSettings();
@@ -585,7 +624,10 @@ function vImport(st){
   return `<div class="card"><h3>從訊息單系統匯入</h3>
    ${fs?`<p>讀到訊息單系統的設定：工程師 ${n.staff} 人、業務 ${n.sales} 人、檢視者 ${n.viewers} 人、客戶 ${n.cust} 筆、機種家族 ${n.fam} 個（型號 ${n.mod} 個）。</p>
    <p class="hint">合併規則：人員依姓名、客戶依名稱比對；已存在的資料只補上空白的欄位，角色會合併，已設定的 PIN 不會被覆蓋。訊息單系統裡已設定的 PIN 會一起帶過來，大家不用重設。工程師帶入「FS 工程師」角色（主任另加「主任」），業務帶入「外勤業務」，請匯入後到「人員」頁調整。</p>
-   <button class="btn pri" data-act="fsimport">匯入（合併）</button>`:`<p class="hint">首頁的 Field Service 卡片還沒讀到資料。請先在首頁讓 Field Service 卡片顯示數字，再回來匯入。</p>`}
+   <button class="btn pri" data-act="fsimport">匯入（合併）</button>
+   ${(()=>{const P=fsPending();return P.length?`<h3 style="margin-top:18px">訊息單開單時的客戶變更（${P.length} 筆待確認）</h3><p class="hint">共用設定開著時，訊息單系統開單新增的客戶、聯絡人或地址會先記在這裡。按「套用」併入共用清單，再按「儲存共用設定」。</p>
+     <table class="tbl"><thead><tr><th>時間</th><th>誰</th><th>客戶</th><th>變更</th><th></th></tr></thead><tbody>${P.map((p,i)=>`<tr><td>${esc(fDT(p.at))}</td><td>${esc(p.by||'')}</td><td>${esc(p.cust)}${p.isNew?' <span class="chip new">新客戶</span>':''}</td><td>${[p.contact&&p.contact.name?'聯絡人 '+esc(p.contact.name)+' '+esc(phoneStr(p.contact.phones)):'',p.addr?'地址 '+esc(p.addr):''].filter(Boolean).join('<br>')}</td><td><button class="btn sm" data-act="pendone" data-i="${i}">套用</button></td></tr>`).join('')}</tbody></table>
+     <div class="row" style="margin-top:8px"><button class="btn sm pri" data-act="pendall">全部套用</button></div>`:''})()}`:`<p class="hint">首頁的 Field Service 卡片還沒讀到資料。請先在首頁讓 Field Service 卡片顯示數字，再回來匯入。</p>`}
   </div>
   <div class="card"><h3>舊欄位</h3><p class="hint">v1.13 以前的「Repair Shop 工程師」「外勤／內勤業務」純文字清單，儲存時會改由人員頁的角色自動產生（仍保留舊欄位給還沒更新的系統讀取）。目前：Repair Shop 工程師 ${st.rsEngineers.length} 人、外勤 ${st.salesOut.length} 人、內勤 ${st.salesIn.length} 人。${(st.rsEngineers.length||st.salesOut.length||st.salesIn.length)?' <button class="btn sm" data-act="legacyimport">把舊清單轉成人員</button>':''}</p></div>`;
 }
@@ -618,6 +660,7 @@ function familySources(){
 }
 function readForm(){
   const ok=readShared();
+  const sgt=$('#segT');if(sgt)S.set.segments=sgt.value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^(\S+)\s*(.*)$/);return {code:m[1],name:m[2]}});
   const st=S.set;const mt=$('#models');if(mt){const fams=[],mods={};
     for(const l of mt.value.split('\n')){const t=l.trim();if(!t)continue;const i=t.search(/[:：]/);const f=(i<0?t:t.slice(0,i)).trim();if(!f)continue;
       if(!fams.includes(f))fams.push(f);const ms=i<0?[]:t.slice(i+1).split(/[,，、]/).map(x=>x.trim()).filter(Boolean);if(ms.length)mods[f]=[...new Set([...(mods[f]||[]),...ms])]}
@@ -640,9 +683,9 @@ async function saveSet(){
     if(S.set.people.length){S.set.rsEngineers=names('rs');S.set.salesOut=names('salesOut');S.set.salesIn=names('salesIn')}
     const empty=S.set.people.filter(p=>!p.name.trim()).length+S.set.customers.filter(c=>!c.name.trim()).length;if(empty){toast('有 '+empty+' 筆人員或客戶沒有填名稱，請補上或刪除',true);return}
     const dupP=S.set.people.map(p=>p.name.trim()).filter((n,i,a)=>a.indexOf(n)!==i);if(dupP.length){toast('人員姓名重複：'+[...new Set(dupP)].join('、'),true);return}
-    const out={...S.set,app:'shared-settings',ver:2,updatedAt:new Date().toISOString(),updatedBy:me};
+    const out={...S.set,customers:S.set.customers.map(c=>{const o=custSync(JSON.parse(JSON.stringify(c)));return o}),app:'shared-settings',ver:2,updatedAt:new Date().toISOString(),updatedBy:me};
     const fh=await d.h.getFileHandle(SETFILE,{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(out,null,1));await w.close();
-    S.set=out;S.setExists=true;S.setLoadedAt=out.updatedAt;S.dirty=false;toast('共用設定已儲存');await loadAll();
+    S.set=normSet(JSON.parse(JSON.stringify(out)));S.setExists=true;S.setLoadedAt=out.updatedAt;S.dirty=false;toast('共用設定已儲存');await loadAll();
   }catch(e){toast('儲存失敗：'+e.message,true)}
 }
 
@@ -727,6 +770,13 @@ document.addEventListener('click',async e=>{
     const v2=prompt('再輸入一次');if(v2!==v1){toast('兩次輸入不同',true);return}p.pin=await pinHash(v1);S.dirty=true;render();toast('PIN 已設定，按「儲存共用設定」後生效');return}
   if(a==='pclr'){const p=S.set.people[+t.dataset.i];if(p&&confirm('清除「'+p.name+'」的 PIN？清除後他下次登入各系統時要重新設定。')){p.pin='';S.dirty=true;render()}return}
   if(a==='cadd'){S.set.customers.unshift(normCust({}));S.cqq='';S.cOpen={0:true};S.cgOpen=Object.assign(S.cgOpen||{},{'（未填區域）':true});S.dirty=true;render();const el=document.querySelector('[data-ci="0"][data-cf="name"]');if(el)el.focus();return}
+  if(['ccadd','ccdel','ccup','cpadd','cpdel'].includes(a)){const c=S.set.customers[+t.dataset.i];if(!c)return;const k=+t.dataset.c;
+    if(a==='ccadd')c.contacts.push({name:'',title:'',phones:phonesOf({})});
+    else if(a==='ccdel'){if(c.contacts.length<=1)c.contacts=[{name:'',title:'',phones:phonesOf({})}];else{if((c.contacts[k].name||c.contacts[k].phones.some(p=>p.v))&&!confirm('刪除聯絡人「'+(c.contacts[k].name||'（未填）')+'」？'))return;c.contacts.splice(k,1)}}
+    else if(a==='ccup'){const x=c.contacts.splice(k,1)[0];c.contacts.unshift(x)}
+    else if(a==='cpadd')c.contacts[k].phones.push({t:'',v:''});
+    else if(a==='cpdel')c.contacts[k].phones.splice(+t.dataset.p,1);
+    S.dirty=true;render();const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改';return}
   if(a==='ctog'){const i=+t.dataset.i;S.cOpen=S.cOpen||{};S.cOpen[i]=!S.cOpen[i];render();return}
   if(a==='cgtog'){if((S.cqq||'').trim())return;const g=t.dataset.g;S.cgOpen=S.cgOpen||{};S.cgOpen[g]=!S.cgOpen[g];render();return}
   if(a==='cgall'){S.cgOpen={};if(t.dataset.v==='1')S.set.customers.forEach(c=>{S.cgOpen[(c.area||'').trim()||'（未填區域）']=true});render();return}
@@ -746,6 +796,7 @@ document.addEventListener('click',async e=>{
     else if(a==='mdel'){const k=mkey(st,f);if(!k)return;st.models[k].splice(+t.dataset.mi,1);if(!st.models[k].length)delete st.models[k];mark()}
     render();if(a==='madd'){const el=$('#madd-'+fi);if(el)el.focus()}if(S.dirty){const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}return}
   if(a==='cdel'){const c=S.set.customers[+t.dataset.i];if(c&&confirm('刪除客戶「'+(c.name||'（未命名）')+'」？')){S.set.customers.splice(+t.dataset.i,1);S.cOpen={};S.dirty=true;render()}return}
+  if(a==='pendone'||a==='pendall'){if(readForm()===false)return;const n=applyFsPending(a==='pendall'?undefined:+t.dataset.i);S.dirty=true;render();toast('已套用 '+n+' 筆，按「儲存共用設定」後生效');return}
   if(a==='fsimport'){if(readForm()===false)return;const r=importFromFS();if(r){S.dirty=true;render();toast(r)}return}
   if(a==='legacyimport'){if(readForm()===false)return;const r=importLegacy();S.dirty=true;render();toast(r);return}
   if(a==='fromrep'){readForm();const m=repMaster();const f=t.dataset.rf;if(m&&m[f]){S.set[f]=JSON.parse(JSON.stringify(m[f]));S.dirty=true;render()}return}
@@ -758,6 +809,7 @@ document.addEventListener('input',e=>{
   const tg=e.target;
   if(tg.id==='pq'||tg.id==='cqq'){S[tg.id]=tg.value;render();const el=document.getElementById(tg.id);if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}return}
   if(tg.dataset.pi!==undefined&&tg.dataset.pf&&tg.type!=='checkbox'){const p=S.set.people[+tg.dataset.pi];if(p){const f=tg.dataset.pf;p[f]=f==='alias'?tg.value.split(/[,，]/).map(x=>x.trim()).filter(Boolean):tg.value}}
+  if(tg.dataset.ci!==undefined&&tg.dataset.cc!==undefined){const c=S.set.customers[+tg.dataset.ci];if(c){const x=c.contacts[+tg.dataset.cc];if(x){if(tg.dataset.cp!==undefined){const p=x.phones[+tg.dataset.cp];if(p)p[tg.dataset.cx]=tg.value}else x[tg.dataset.cx]=tg.value}}}
   if(tg.dataset.ci!==undefined&&tg.dataset.cf&&tg.type!=='checkbox'){const c=S.set.customers[+tg.dataset.ci];if(c){const f=tg.dataset.cf;
     if(f==='alias')c.alias=tg.value.split(/[,，]/).map(x=>x.trim()).filter(Boolean);else if(f==='km'||f==='min'){const n=parseFloat(tg.value);c[f]=isFinite(n)?n:null}else{c[f]=tg.value;if(f==='phone')delete c.phones}}}
   if(e.target.dataset.try){const k=e.target.dataset.try;readForm();const r=testPat(S.set.formats[k].pattern,e.target.value);const el=$('#try-'+k);
@@ -767,6 +819,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{
   const tg=e.target;
   if(tg.type==='checkbox'&&tg.dataset.pi!==undefined){const p=S.set.people[+tg.dataset.pi];if(p){if(tg.dataset.pr){const r=tg.dataset.pr;p.roles=tg.checked?[...new Set([...p.roles,r])]:p.roles.filter(x=>x!==r)}else p[tg.dataset.pf]=tg.checked;S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}return}
+  if(tg.tagName==='SELECT'&&tg.dataset.ci!==undefined&&tg.dataset.cf){const c=S.set.customers[+tg.dataset.ci];if(c){c[tg.dataset.cf]=tg.value;S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}return}
   if(tg.type==='checkbox'&&tg.dataset.ci!==undefined){const c=S.set.customers[+tg.dataset.ci];if(c){c[tg.dataset.cf]=tg.checked;S.dirty=true;const d=$('#dirty');if(d)d.textContent='　● 有未儲存的修改'}return}
   const kv=e.target.dataset.kv,kc=e.target.dataset.kc,kl=e.target.dataset.kl;
   if(kv||kc){const [k,f]=(kv||kc).split('.');const c=kcfg(k);
