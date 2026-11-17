@@ -97,7 +97,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.14 (2026-11-17)';
+const VER='v1.15 (2026-11-17)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -128,7 +128,7 @@ const DEF_SET=()=>({app:'shared-settings',ver:1,families:[...DEF_FAMILIES],
   formats:{wo:{example:'',pattern:'',note:''},fsn:{example:'',pattern:'',note:''}},
   folders:{},links:{},stations:[],shifts:{},breaks:{},rsEngineers:[],salesOut:[],salesIn:[],people:[],customers:[],models:{},adminHash:'',updatedAt:'',updatedBy:''});
 /* 共用人員角色（各系統依角色取用名單） */
-const PROLES=[['eng','FS 工程師'],['chief','主任'],['rs','Repair Shop 工程師'],['salesOut','外勤業務'],['salesIn','內勤業務'],['viewer','檢視者']];
+const PROLES=[['eng','FS 工程師'],['chief','主任'],['rs','Repair Shop 工程師'],['rsSched','Repair Shop 排程'],['salesOut','外勤業務'],['salesIn','內勤業務'],['viewer','檢視者']];
 const normPerson=x=>Object.assign({name:'',en:'',title:'',alias:[],code:'',roles:[],active:true,pin:''},x||{});
 const normCust=x=>Object.assign({name:'',alias:[],contact:'',phone:'',addr:'',area:'',segment:'',photo:false,km:null,min:null},x||{});
 /* PIN 雜湊與訊息單系統相同（舊 PIN 可直接沿用） */
@@ -491,7 +491,7 @@ function vPeople(st){
   const q=(S.pq||'').trim().toLowerCase();
   const rows=st.people.map((p,i)=>({p,i})).filter(({p})=>!q||[p.name,p.en,p.title,p.code,...(p.alias||[])].join(' ').toLowerCase().includes(q));
   return `<div class="card"><h3>人員（${st.people.length}）</h3>
-   <p class="hint">一人一列，角色可複選。各系統依角色取用：訊息單系統（FS 工程師、主任、業務、檢視者）、Repair Shop（Repair Shop 工程師、業務）、報工（FS／Repair Shop 工程師）。PIN 所有系統共用；沒設 PIN 的人第一次登入時，由該系統自行設定。</p>
+   <p class="hint">一人一列，角色可複選。各系統依角色取用：訊息單系統（FS 工程師、主任、業務、檢視者）、Repair Shop（排程、Repair Shop 工程師、業務、檢視者）、客戶問題點（全部人員；主任、工程師、業務、檢視者）、報工（FS／Repair Shop 工程師、主任）。各角色能做什麼由各系統的「權限」頁設定。PIN 所有系統共用；沒設 PIN 的人第一次登入時，由該系統自行設定。</p>
    <div class="row" style="margin-bottom:8px"><input type="text" id="pq" placeholder="搜尋姓名／英文名／代碼" value="${esc(S.pq||'')}" style="max-width:260px"><button class="btn sm" data-act="padd">＋ 新增人員</button></div>
    <div style="overflow-x:auto"><table class="tbl etbl"><thead><tr><th>姓名</th><th>英文名</th><th>職稱</th><th>業務代碼</th><th>別名（逗號分隔）</th><th>角色</th><th>啟用</th><th>PIN</th><th></th></tr></thead><tbody>
    ${rows.map(({p,i})=>`<tr><td><input type="text" data-pi="${i}" data-pf="name" value="${esc(p.name)}"></td><td><input type="text" data-pi="${i}" data-pf="en" value="${esc(p.en)}"></td>
