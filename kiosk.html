@@ -536,20 +536,26 @@ function fsCases(){
     const type=String(r.type||'').replace('廠内','廠內').trim();
     const c={fsn:r.fsn,cust:r.cust||'',sc:shortCust(r.cust)||r.fsn,type,r,addr:r.addr||''};
     c.stage=r.stage||(type==='此單作廢'?'取消':'待安排');
-    c.date=r.date||'';c.days=Math.max(1,+r.days||1);c.end=c.date?addD(c.date,c.days-1):'';
+    c.date=r.date||'';c.days=Math.min(60,Math.max(0.5,Math.round((+r.days||1)*2)/2));c.slots=fsSlots(c.date,c.days,r.tStart);c.end=c.slots.length?c.slots[c.slots.length-1].d:'';
     c.staff=Array.isArray(r.staff)?r.staff.filter(Boolean):[];c.issue=r.issue||'';
     c.wait=c.issue&&c.stage==='待安排'?diffD(c.issue,t):null;
     c.due=c.end?fsDue(c.end):'';c.late=c.stage==='已排程'&&!!c.due&&c.due<t;
     return c;
   });
 }
-const onDay=(c,d)=>c.date&&c.date<=d&&d<=c.end;
+/* 半天排程（同 Field Service v3.2）：開始日＋天數（0.5 為單位），12:00 以後開始＝從下午起 */
+function fsSlots(date,days,tStart){if(!date)return [];const m=String(tStart||'').match(/^(\d{1,2}):(\d{2})/);let u=Math.round(days*2),pm=m?(+m[1]*60+ +m[2])>=720:false,d=date;const out=[];
+  while(u>0){let r=out.find(o=>o.d===d);if(!r){r={d,am:false,pm:false};out.push(r)}if(pm){r.pm=true;u--;d=addD(d,1);pm=false}else{r.am=true;u--;pm=true}}return out}
+const slotOf=(c,d)=>(c.slots||[]).find(x=>x.d===d);
+const halfOf=(c,d)=>{const x=d&&slotOf(c,d);return x&&!(x.am&&x.pm)?(x.am?'上午':'下午'):''};
+const slotRank=(c,d)=>{const x=slotOf(c,d);return !x||x.am&&x.pm?1:x.am?0:2};
+const onDay=(c,d)=>!!slotOf(c,d);
 const fsStaff=()=>((S.fs.set&&S.fs.set.staff)||[]).filter(s=>s&&s.name&&s.active!==false).map(s=>s.name);
 const live=c=>c.stage!=='取消'&&c.stage!=='轉系統部門';
 function custArea(name){const cs=(S.fs.set&&S.fs.set.customers)||[];const c=cs.find(x=>x.name===name);return c&&(c.area||'')}
 function timeTxt(c){const r=c.r;return (r.tStart?r.tStart+(r.tEnd?'–'+r.tEnd:''):'')}
-function chip(c,showStaff){const cls=fsCls(c),bd=fsBadge(c);
-  const sub=[c.type,timeTxt(c),c.r.vehicle,showStaff?(c.staff.join('、')||'未指派'):''].filter(Boolean).join('・');
+function chip(c,showStaff,day){const cls=fsCls(c),bd=fsBadge(c);
+  const sub=[halfOf(c,day),c.type,timeTxt(c),c.r.vehicle,showStaff?(c.staff.join('、')||'未指派'):''].filter(Boolean).join('・');
   return `<div class="chip ${cls}${bd?' bdg':''}" style="--c:${fsTC(c.type)}">${bd?`<i class="bd">${bd}</i>`:''}<b>${esc(c.sc)}</b><span>${esc(sub)}</span></div>`}
 function fsKpis(cs){
   const t=today(),ws=mondayOf(t),we=addD(ws,6);
@@ -579,7 +585,7 @@ function fsDay(m,cs){
   const t=today(),td=cs.filter(c=>live(c)&&onDay(c,t));
   const staff=fsStaff();const rows=[...staff.filter(s=>td.some(c=>c.staff.includes(s)))];
   const un=td.filter(c=>!c.staff.length);const idle=staff.filter(s=>!rows.includes(s));
-  const card=c=>{const a=custArea(c.cust);const dn=c.days>1?`第 ${diffD(c.date,t)+1}/${c.days} 天`:'';
+  const card=c=>{const a=custArea(c.cust);const dn=c.days>1?`第 ${diffD(c.date,t)+1} 天／共 ${c.days} 天`:halfOf(c,t);
     return `<div class="card ${fsCls(c)}${fsBadge(c)?' bdg':''}" style="--c:${fsTC(c.type)}">${fsBadge(c)?`<i class="bd">${fsBadge(c)}</i>`:''}<b>${esc(c.sc)}</b><div class="m">${[c.type,timeTxt(c),c.r.vehicle?'🚐 '+c.r.vehicle:'',a?'📍'+a:'',dn,c.staff.length>1?'同行 '+c.staff.length+' 人':''].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join('')}</div></div>`};
   let h=rows.map(s=>`<div class="dr"><div class="nm">${esc(s)}</div><div class="cards">${td.filter(c=>c.staff.includes(s)).map(card).join('')}</div></div>`).join('');
   if(un.length)h+=`<div class="dr"><div class="nm" style="color:var(--warn)">未指派</div><div class="cards">${un.map(card).join('')}</div></div>`;
@@ -588,7 +594,7 @@ function fsDay(m,cs){
   m.style.gridTemplateColumns='1fr 30%';
   m.innerHTML=`<div class="pn"><h2>今日出勤 <small>${md(t)}（${wd(t)}）</small></h2><div style="flex:1;min-height:0;overflow:hidden">${h}</div>
      ${idle.length?`<div class="sub" style="margin-top:.5em;font-size:1.05em">今日無排程：${esc(idle.join('、'))}</div>`:''}</div>
-   <div class="col"><div class="pn" style="flex:0 1 auto;max-height:46%"><h2>${md(nd)}（${wd(nd)}） <small>${nx.length} 件</small></h2><div class="cells">${nx.map(c=>chip(c,true)).join('')||'<div class="empty">沒有排程</div>'}</div></div>
+   <div class="col"><div class="pn" style="flex:0 1 auto;max-height:46%"><h2>${md(nd)}（${wd(nd)}） <small>${nx.length} 件</small></h2><div class="cells">${nx.map(c=>chip(c,true,nd)).join('')||'<div class="empty">沒有排程</div>'}</div></div>
      <div class="pn"><h2>待安排 <small>依等待天數</small></h2>${pendList(cs,10)}</div></div>`;
 }
 function fsWeek(m,cs){
@@ -600,7 +606,7 @@ function fsWeek(m,cs){
   rows.forEach(s=>{const mine=vis.filter(c=>s==='未指派'?!c.staff.length:c.staff.includes(s));
     const pd=days.filter(d=>mine.some(c=>onDay(c,d))).length;
     g+=`<div class="rn">${esc(s)}${s==='未指派'?'':`<small>${pd} 天</small>`}</div>`;
-    days.forEach(d=>{const x=mine.filter(c=>onDay(c,d));g+=`<div class="${d===t?'td':''} ${isWE(d)?'we':''}"><div class="cells">${x.map(c=>chip(c,false)).join('')}</div></div>`})});
+    days.forEach(d=>{const x=mine.filter(c=>onDay(c,d)).sort((a,b)=>slotRank(a,d)-slotRank(b,d));g+=`<div class="${d===t?'td':''} ${isWE(d)?'we':''}"><div class="cells">${x.map(c=>chip(c,false,d)).join('')}</div></div>`})});
   m.style.gridTemplateColumns='1fr 22%';
   m.innerHTML=`<div class="pn"><h2>人員週排程 <small>${md(ws)}–${md(we)}</small><span style="flex:1"></span><span class="lg" style="margin:0">${fsLegend()}</span></h2>
      <div class="wg" style="grid-template-columns:6.6em repeat(${days.length},minmax(0,1fr));grid-template-rows:auto repeat(${rows.length},minmax(0,1fr))">${g}</div></div>
