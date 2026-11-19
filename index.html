@@ -110,7 +110,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.17 (2026-11-17)';
+const VER='v1.18 (2026-11-19)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -216,7 +216,11 @@ async function grantEach(){
 const FSA='showDirectoryPicker' in window;
 async function linkRoot(){
   if(!FSA){toast('請用電腦版 Chrome 或 Edge 開啟',true);return}
-  try{const h=await showDirectoryPicker({id:'svc-portal-root',mode:'read'});S.root=h;S.perm='granted';await idb.set('root',h);
+  try{const h=await showDirectoryPicker({id:'svc-portal-root',mode:'read'});
+    if(MODE()==='each'){const names=[];for await(const [n,x] of h.entries())if(x.kind==='directory')names.push(n);
+      const hits=[...AUX,...SYSB].filter(sy=>names.some(n=>sy.match.test(n))).length;
+      if(hits<2&&!confirm(`「${h.name}」底下找不到各系統的資料夾（只比對到 ${hits} 個），看起來不是 NAS 共用根目錄。\n\n仍要切換嗎？切換後個別指定的資料夾會清除。`))return}
+    S.root=h;S.perm='granted';await idb.set('root',h);
     if(MODE()==='each'){localStorage.removeItem('svc_portal_mode');await clearEach();toast('已切換到 NAS 根目錄模式')}
     await loadAll()}
   catch(e){if(e.name!=='AbortError')toast('連結失敗：'+e.message,true)}
@@ -354,7 +358,8 @@ const TABS=[['home','首頁'],['kiosk','📺 看板'],['settings','⚙ 共用設
 function render(){
   if(!S._sysBuilt){buildSys();S._sysBuilt=1}
   $('#ver').textContent=VER;setStat(S.loading?'讀取中…':'');
-  $('#bRoot').textContent=MODE()==='each'?'改用 NAS 根目錄':S.root?(S.perm==='granted'?'變更根目錄':'授權讀取'):'連結共用根目錄';
+  const br=$('#bRoot');const need=MODE()!=='each'&&(!S.root||S.perm!=='granted');
+  br.style.display=need?'':'none';br.textContent=S.root?'授權讀取':'連結共用根目錄';
   $('#nav').innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('');
   $('#main').innerHTML=S.tab==='home'?vHome():S.tab==='kiosk'?vKiosk():S.tab==='settings'?vSettings():vCheck();
   if(S.tab==='check'&&!S.check&&ready())runCheck();
@@ -363,7 +368,7 @@ const OLD_LINKS=['https://coos0820-hub.github.io/service-report/','https://coos0
 function linkFor(k){const sy=SYSALL.find(x=>x.k===k);if(sy&&sy.kind==='link')return sy.link||'';if(MODE()==='each'||WEBLINK()){const u=S.set&&S.set.links&&S.set.links[k];return (u&&!OLD_LINKS.includes(u))?u:(DEF_LINKS[k]||'')}const name=(S.dirs[k]&&S.dirs[k].name)||(ls.get('svc_portal_dirs')||{})[k];return name?'../'+encodeURIComponent(name)+'/index.html':''}
 function banner(){
   if(!FSA)return `<div class="banner">這個瀏覽器不支援讀取共用資料夾，請用電腦版 Chrome 或 Edge 開啟。各系統入口仍可使用。</div>`;
-  if(MODE()==='each')return `<div class="banner info">過渡模式（NAS 上線前）：各系統個別指定資料夾，「開啟」連到 GitHub Pages。NAS 上線後按右上角「改用 NAS 根目錄」切換，並把共用設定.json <b>搬移</b>到 NAS。</div>`+
+  if(MODE()==='each')return `<div class="banner info">過渡模式（NAS 上線前）：各系統個別指定資料夾，「開啟」連到 GitHub Pages。NAS 上線後到「部署檢查」按「改用 NAS 根目錄」切換，並把共用設定.json <b>搬移</b>到 NAS。</div>`+
     (S.needGrant.length?`<div class="banner">瀏覽器需要重新授權讀取 ${S.needGrant.length} 個資料夾。<button class="btn sm pri" data-act="granteach">授權讀取</button></div>`:'')+
     (!S.each.settings?`<div class="banner">還沒指定共用設定資料夾（建議放在 OneDrive 上你自己的資料夾）。<button class="btn sm pri" data-act="pickeach" data-k="settings">指定</button></div>`:'');
   if(!S.root)return `<div class="banner info">第一次使用：按右上角「連結共用根目錄」，選 NAS 上放各系統資料夾的那一層（不是入口網站資料夾本身）。<button class="btn sm pri" data-act="root">連結</button>　NAS 還沒上線？<button class="btn sm" data-act="starteach">改用個別指定資料夾</button></div>`;
@@ -715,11 +720,18 @@ async function runCheck(){
   }
   S.check.rows=rows;if(S.tab==='check')render();
 }
+function vConn(){
+  const each=MODE()==='each';
+  return `<div class="card"><h3>連結方式（這台電腦）</h3>
+   <p style="margin:0 0 8px">${each?`目前是<b>過渡模式</b>：各系統個別指定資料夾（${Object.keys(S.each).length} 個），「開啟」連到 GitHub Pages。`:S.root?`目前是 <b>NAS 根目錄模式</b>：${esc(S.root.name)}`:'尚未連結'}</p>
+   <div class="row">${each?`<button class="btn" data-act="switchroot">改用 NAS 根目錄</button><span class="hint">NAS 上線、共用設定.json 已搬到 NAS 後才按。每台電腦各按一次。</span>`
+     :`<button class="btn" data-act="root">${S.root?'變更根目錄':'連結共用根目錄'}</button><span class="hint">選 NAS 上放各系統資料夾的那一層。</span>`}</div></div>`;
+}
 function vCheck(){
-  if(!ready())return banner()+`<div class="card">連結共用根目錄（或個別指定資料夾）後才能檢查。</div>`;
-  if(!S.check||!S.check.rows)return `<div class="card">檢查中…</div>`;
+  if(!ready())return banner()+vConn()+`<div class="card">連結共用根目錄（或個別指定資料夾）後才能檢查。</div>`;
+  if(!S.check||!S.check.rows)return vConn()+`<div class="card">檢查中…</div>`;
   const ic={ok:'<span class="okc">✔</span>',warn:'<span class="wrnc">!</span>',bad:'<span class="badc">✖</span>'};
-  return `<div class="card"><h3>部署檢查</h3><table class="tbl"><thead><tr><th style="width:28px"></th><th style="width:180px">項目</th><th>結果</th></tr></thead><tbody>
+  return vConn()+`<div class="card"><h3>部署檢查</h3><table class="tbl"><thead><tr><th style="width:28px"></th><th style="width:180px">項目</th><th>結果</th></tr></thead><tbody>
    ${S.check.rows.map(([a,l,m])=>`<tr><td>${ic[l]}</td><td>${esc(a)}</td><td>${l==='ok'||m.includes('<')?m:esc(m)}</td></tr>`).join('')}</tbody></table>
    <div class="row" style="margin-top:10px"><button class="btn sm" data-act="recheck">重新檢查</button><span class="hint">每台電腦第一次使用時跑一次，確認資料夾、網頁和資料檔都找得到。</span></div></div>`;
 }
@@ -736,11 +748,12 @@ document.addEventListener('drop',e=>{if(!dragK)return;const t=e.target.closest('
 /* ---------- 事件 ---------- */
 document.addEventListener('click',async e=>{
   const t=e.target.closest('[data-tab],[data-act],#bRoot,#bRefresh');if(!t)return;
-  if(t.id==='bRoot'){if(MODE()==='each'&&!confirm('切換到 NAS 根目錄模式？\n個別指定的資料夾會清除；共用設定.json 請先搬移到 NAS 的共用設定資料夾。'))return;return MODE()!=='each'&&S.root&&S.perm!=='granted'?grantRoot():linkRoot()}
+  if(t.id==='bRoot'){return MODE()!=='each'&&S.root&&S.perm!=='granted'?grantRoot():linkRoot()}
   if(t.id==='bRefresh'){if(MODE()==='each'){if(S.needGrant.length)await grantEach();else await loadAll()}else if(S.root&&S.perm==='granted')await loadAll();else if(S.root)await grantRoot();return}
   if(t.dataset.tab){if(S.tab==='settings'&&S.unlocked)readForm();S.tab=t.dataset.tab;render();return}
   const a=t.dataset.act;
   if(a==='root')return linkRoot();
+  if(a==='switchroot'){if(!confirm('切換到 NAS 根目錄模式？\n\n• 共用設定.json 要先搬移（不是複製）到 NAS 的共用設定資料夾\n• 個別指定的資料夾會清除\n• 每台電腦要各自切換一次'))return;return linkRoot()}
   if(a==='grant')return grantRoot();
   if(a==='starteach')return startEach();
   if(a==='pickeach')return pickEach(t.dataset.k);
