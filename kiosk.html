@@ -238,7 +238,7 @@ const code=t=>String(t||'').split(' ')[0];
 const tcol=c=>TC[c]||TC.OTH;
 const tname=t=>TN[code(t)]||String(t||'').split(' ').slice(1).join(' ')||t||'其他';
 /* Field Service 卡片依服務主旨上色（與訊息單系統、Repair Shop 一致）；階段用右上角標籤 */
-const FS_TC=[['保養','#1baf7a'],['維修','#eb6834'],['檢修','#eb6834'],['檢查','#6250d6'],['定位','#2a78d6'],['試車','#2a78d6']];
+const FS_TC=[['內部','#5b6b7f'],['保養','#1baf7a'],['維修','#eb6834'],['檢修','#eb6834'],['檢查','#6250d6'],['定位','#2a78d6'],['試車','#2a78d6']];
 function fsTC(t){t=String(t||'');let b='#7a7d75',bi=1e9;FS_TC.forEach(([k,c])=>{const i=t.indexOf(k);if(i>=0&&i<bi){bi=i;b=c}});return b}
 function fsBadge(c){return c.late?'逾期':c.stage==='待審核'?'待審':c.stage==='結案'?'✓':''}
 function fsCls(c){return c.late?'late':c.stage==='待審核'?'done':c.stage==='結案'?'closed':''}
@@ -540,6 +540,7 @@ function fsCases(){
     c.staff=Array.isArray(r.staff)?r.staff.filter(Boolean):[];c.issue=r.issue||'';
     c.wait=c.issue&&c.stage==='待安排'?diffD(c.issue,t):null;
     c.due=c.end?fsDue(c.end):'';c.late=c.stage==='已排程'&&!!c.due&&c.due<t;
+    if(r.job){c.job=true;c.late=false;c.wait=null;c.type='內部';c.sc='［'+(r.job.cat||'內部')+'］'+(shortCust(r.cust)||r.job.subject||'')} // 內部派工（v3.3）
     return c;
   });
 }
