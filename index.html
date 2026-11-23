@@ -688,6 +688,8 @@ async function saveSet(){
     if(S.set.people.length){S.set.rsEngineers=names('rs');S.set.salesOut=names('salesOut');S.set.salesIn=names('salesIn')}
     const empty=S.set.people.filter(p=>!p.name.trim()).length+S.set.customers.filter(c=>!c.name.trim()).length;if(empty){toast('有 '+empty+' 筆人員或客戶沒有填名稱，請補上或刪除',true);return}
     const dupP=S.set.people.map(p=>p.name.trim()).filter((n,i,a)=>a.indexOf(n)!==i);if(dupP.length){toast('人員姓名重複：'+[...new Set(dupP)].join('、'),true);return}
+    const dupC=S.set.people.map(p=>String(p.code||'').trim().toUpperCase()).filter((c,i,a)=>c&&a.indexOf(c)!==i);if(dupC.length){toast('業務代碼重複：'+[...new Set(dupC)].join('、')+'（代碼會用在訊息單單號與登入，不能重複）',true);return}
+    const badC=S.set.people.filter(p=>p.code&&!/^[A-Za-z]+$/.test(String(p.code).trim())).map(p=>p.name);if(badC.length){toast('業務代碼只能用英文字母：'+badC.join('、'),true);return}
     // 依角色排序：主任 → FS 工程師 → Repair Shop 排程 → Repair Shop 工程師 → 內勤業務 → 外勤業務 → 檢視者 → 沒有角色（同角色依業務代碼、姓名）
     const RORD=['chief','eng','rsSched','rs','salesIn','salesOut','viewer'];const rk=p=>{const i=RORD.findIndex(r=>(p.roles||[]).includes(r));return i<0?99:i};
     S.set.people.sort((a,b)=>rk(a)-rk(b)||String(a.code||'').localeCompare(String(b.code||''))||String(a.name).localeCompare(String(b.name),'zh-Hant'));
