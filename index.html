@@ -110,7 +110,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:13px}
 <main id="main"></main>
 
 <script>
-const VER='v1.18 (2026-11-19)';
+const VER='v1.19 (2026-11-23)';
 const SETFILE='共用設定.json';
 /* 內建系統類型：決定入口怎麼讀資料、首頁顯示哪些數字。首頁卡片清單本身存在共用設定 systems，可增刪排序 */
 const BUILTIN=[
@@ -688,6 +688,9 @@ async function saveSet(){
     if(S.set.people.length){S.set.rsEngineers=names('rs');S.set.salesOut=names('salesOut');S.set.salesIn=names('salesIn')}
     const empty=S.set.people.filter(p=>!p.name.trim()).length+S.set.customers.filter(c=>!c.name.trim()).length;if(empty){toast('有 '+empty+' 筆人員或客戶沒有填名稱，請補上或刪除',true);return}
     const dupP=S.set.people.map(p=>p.name.trim()).filter((n,i,a)=>a.indexOf(n)!==i);if(dupP.length){toast('人員姓名重複：'+[...new Set(dupP)].join('、'),true);return}
+    // 依角色排序：主任 → FS 工程師 → Repair Shop 排程 → Repair Shop 工程師 → 內勤業務 → 外勤業務 → 檢視者 → 沒有角色（同角色依業務代碼、姓名）
+    const RORD=['chief','eng','rsSched','rs','salesIn','salesOut','viewer'];const rk=p=>{const i=RORD.findIndex(r=>(p.roles||[]).includes(r));return i<0?99:i};
+    S.set.people.sort((a,b)=>rk(a)-rk(b)||String(a.code||'').localeCompare(String(b.code||''))||String(a.name).localeCompare(String(b.name),'zh-Hant'));
     const out={...S.set,customers:S.set.customers.map(c=>{const o=custSync(JSON.parse(JSON.stringify(c)));return o}),app:'shared-settings',ver:2,updatedAt:new Date().toISOString(),updatedBy:me};
     const fh=await d.h.getFileHandle(SETFILE,{create:true});const w=await fh.createWritable();await w.write(JSON.stringify(out,null,1));await w.close();
     S.set=normSet(JSON.parse(JSON.stringify(out)));S.setExists=true;S.setLoadedAt=out.updatedAt;S.dirty=false;toast('共用設定已儲存');await loadAll();
